@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<title>アニメ聖地マップ</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css"/>
+<style>
+:root{--bg:#fff;--bg2:#f5f5f5;--bg3:#ebebeb;--border:#e0e0e0;--border2:#ccc;--text:#111;--text2:#555;--text3:#999;--blue:#378ADD;--blue-light:#E6F1FB;--green:#1D9E75;--green-light:#E1F5EE;--r-sm:8px;--r-md:12px;--r-lg:16px;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:#1a1a2e;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Noto Sans JP',sans-serif;display:flex;align-items:center;justify-content:center;}
+.phone-frame{width:390px;height:844px;position:relative;border-radius:44px;overflow:hidden;box-shadow:0 0 0 10px #2a2a3e,0 0 0 12px #3a3a5e,0 30px 80px rgba(0,0,0,.6);flex-shrink:0;}
+@media(max-width:430px){html,body{background:#fff;display:block;height:100%;}.phone-frame{width:100%;height:100dvh;border-radius:0;box-shadow:none;}}
+#app{display:flex;flex-direction:column;height:100%;position:relative;overflow:hidden;background:#f0f0f0;}
+#map{flex:1;width:100%;z-index:0;}
+.top-ui{position:absolute;top:0;left:0;right:0;z-index:10;padding:12px 12px 0;display:flex;flex-direction:column;gap:6px;}
+.search-row{display:flex;gap:6px;align-items:center;}
+.search-pill{flex:1;display:flex;align-items:center;gap:7px;background:var(--bg);border:0.5px solid var(--border);border-radius:99px;padding:10px 14px;box-shadow:0 1px 6px rgba(0,0,0,.12);}
+.search-pill i{font-size:17px;color:var(--text3);flex-shrink:0;}
+.search-pill input{border:none;background:none;font-size:14px;color:var(--text);outline:none;width:100%;}
+.search-pill input::placeholder{color:var(--text3);}
+.anime-pill-wrap{position:relative;flex:1;}
+.anime-pill{width:100%;display:flex;align-items:center;gap:7px;background:var(--bg);border:0.5px solid var(--border);border-radius:99px;padding:10px 14px;cursor:pointer;box-shadow:0 1px 6px rgba(0,0,0,.12);}
+.anime-pill i{font-size:17px;color:var(--text3);flex-shrink:0;}
+.anime-pill-label{font-size:14px;color:var(--text3);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.anime-pill-label.chosen{color:var(--text);}
+.anime-pill .chev{font-size:15px;margin-left:auto;flex-shrink:0;transition:transform .2s;}
+.anime-pill.open .chev{transform:rotate(180deg);}
+.anime-dd{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--r-lg);z-index:100;max-height:260px;overflow-y:auto;display:none;box-shadow:0 4px 20px rgba(0,0,0,.14);}
+.anime-dd.open{display:block;}
+.dd-search-row{padding:10px;border-bottom:0.5px solid var(--border);}
+.dd-search-row input{width:100%;font-size:14px;padding:8px 12px;border-radius:var(--r-sm);border:0.5px solid var(--border);background:var(--bg2);color:var(--text);outline:none;}
+.dd-all{padding:13px 14px;font-size:14px;color:var(--text2);cursor:pointer;border-bottom:0.5px solid var(--border);}
+.dd-all:active,.dd-all:hover{background:var(--bg2);}
+.dd-item{padding:13px 14px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:10px;color:var(--text);border-bottom:0.5px solid var(--border);}
+.dd-item:last-child{border-bottom:none;}
+.dd-item:active,.dd-item:hover,.dd-item.sel{background:var(--bg2);}
+.dd-item.sel{font-weight:500;}
+.dd-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.dd-cnt{margin-left:auto;font-size:13px;color:var(--text3);}
+.icon-btn{width:46px;height:46px;border-radius:50%;background:var(--bg);border:0.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:22px;color:var(--text2);box-shadow:0 1px 6px rgba(0,0,0,.12);}
+.icon-btn.active{color:var(--blue);border-color:var(--blue);}
+.pil-banner{display:none;align-items:center;gap:8px;background:var(--green);border-radius:var(--r-lg);padding:10px 14px;box-shadow:0 1px 4px rgba(0,0,0,.15);}
+.pil-banner.visible{display:flex;}
+.pil-banner-text{color:#fff;font-size:13px;font-weight:500;flex:1;line-height:1.4;}
+.pil-exit-btn{background:rgba(255,255,255,.25);border:none;color:#fff;font-size:13px;padding:6px 12px;border-radius:99px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.loc-banner{position:absolute;bottom:70px;left:12px;right:12px;z-index:20;background:var(--bg);border:0.5px solid var(--border);border-radius:var(--r-lg);padding:11px 14px;font-size:13px;color:var(--text2);display:none;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,.12);}
+.loc-banner i{font-size:19px;color:var(--blue);}
+.toast{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.85);z-index:9999;background:rgba(0,0,0,.80);color:#fff;font-size:15px;font-weight:500;padding:13px 24px;border-radius:99px;pointer-events:none;opacity:0;transition:opacity .2s,transform .2s;white-space:nowrap;}
+.toast.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
+.bottom-sheet{position:absolute;bottom:0;left:0;right:0;z-index:10;background:var(--bg);border-radius:18px 18px 0 0;border-top:0.5px solid var(--border);box-shadow:0 -2px 14px rgba(0,0,0,.10);transition:transform .3s cubic-bezier(.32,1,.4,1);touch-action:none;}
+.sheet-handle-row{padding:10px 0 4px;display:flex;justify-content:center;cursor:pointer;}
+.sheet-handle{width:38px;height:4px;border-radius:99px;background:var(--border2);}
+.sheet-header{padding:2px 16px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.sheet-title{font-size:15px;font-weight:600;color:var(--text);flex:1;}
+.sheet-count{font-size:13px;color:var(--text3);white-space:nowrap;}
+.pil-start-btn{display:flex;align-items:center;gap:5px;padding:8px 16px;border-radius:99px;background:var(--green);color:#fff;font-size:14px;font-weight:500;cursor:pointer;border:none;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.12);}
+.pil-start-btn:disabled{background:var(--border2);cursor:default;}
+.sheet-content{overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.sheet-content.collapsed{display:none;}
+.near-item{padding:13px 16px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--bg);}
+.near-item:active,.near-item:hover{background:var(--bg2);}
+.near-left{flex:1;min-width:0;}
+.near-anime{font-size:12px;color:var(--text3);margin-bottom:2px;display:flex;align-items:center;gap:5px;}
+.near-place{font-size:15px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.near-ep{font-size:12px;color:var(--text2);margin-top:2px;}
+.near-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;}
+.dist-badge{font-size:12px;font-weight:500;padding:3px 9px;border-radius:99px;background:var(--bg2);color:var(--text2);white-space:nowrap;}
+.dist-badge.near{background:#E1F5EE;color:#0F6E56;}
+.detail-btn-sm{display:flex;align-items:center;gap:4px;font-size:12px;padding:5px 10px;border-radius:99px;border:0.5px solid var(--border);color:var(--text2);background:var(--bg2);}
+.order-badge{width:30px;height:30px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--text3);background:var(--bg);flex-shrink:0;}
+.order-badge.assigned{color:#fff;border-color:transparent;}
+.pil-hud{position:absolute;bottom:0;left:0;right:0;z-index:15;display:none;pointer-events:none;}
+.pil-hud.visible{display:block;}
+.pil-next-card{background:var(--bg);border-radius:var(--r-lg) var(--r-lg) 0 0;box-shadow:0 -2px 14px rgba(0,0,0,.12);padding:14px 16px 10px;pointer-events:all;}
+.pil-next-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.pil-next-place{font-size:17px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.pil-next-meta{font-size:12px;color:var(--text2);margin-bottom:10px;display:flex;gap:12px;}
+.pil-next-actions{display:flex;gap:8px;}
+.pil-nav-big{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;border-radius:var(--r-md);background:var(--blue);color:#fff;font-size:14px;font-weight:500;text-decoration:none;}
+.pil-arrived-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;border-radius:var(--r-md);background:var(--green-light);border:1.5px solid var(--green);color:var(--green);font-size:14px;font-weight:500;cursor:pointer;}
+.pil-progress{display:flex;align-items:center;gap:6px;margin-bottom:10px;}
+.pil-progress-bar{flex:1;height:4px;background:var(--bg3);border-radius:99px;overflow:hidden;}
+.pil-progress-fill{height:100%;background:var(--green);border-radius:99px;transition:width .4s;}
+.pil-progress-text{font-size:12px;color:var(--text3);white-space:nowrap;}
+.pil-item{padding:13px 16px;border-top:0.5px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--bg);cursor:pointer;}
+.pil-item:active,.pil-item:hover{background:var(--bg2);}
+.pil-item.done{background:#f0faf6;}
+.pil-num{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;}
+.pil-info{flex:1;min-width:0;}
+.pil-place{font-size:15px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pil-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+.pil-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;}
+.pil-done-badge{font-size:11px;padding:3px 9px;border-radius:99px;background:#E1F5EE;color:#0F6E56;font-weight:500;}
+.pil-nav-btn{font-size:12px;padding:6px 10px;border-radius:99px;background:var(--blue-light);border:0.5px solid #B5D4F4;color:#185FA5;text-decoration:none;white-space:nowrap;display:flex;align-items:center;gap:3px;}
+.detail-overlay{position:absolute;inset:0;z-index:30;background:rgba(0,0,0,.42);display:none;}
+.detail-overlay.open{display:block;}
+.detail-sheet{position:absolute;bottom:0;left:0;right:0;z-index:40;background:var(--bg);border-radius:22px 22px 0 0;transform:translateY(100%);transition:transform .32s cubic-bezier(.32,1,.4,1);max-height:90%;display:flex;flex-direction:column;box-shadow:0 -4px 28px rgba(0,0,0,.16);}
+.detail-sheet.open{transform:translateY(0);}
+.detail-handle-row{padding:10px 0 4px;display:flex;justify-content:center;flex-shrink:0;}
+.detail-handle{width:38px;height:4px;border-radius:99px;background:var(--border2);}
+.detail-scroll{overflow-y:auto;flex:1;padding-bottom:8px;-webkit-overflow-scrolling:touch;}
+.detail-hero-ph{width:100%;height:150px;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--text3);font-size:13px;}
+.detail-hero-ph i{font-size:30px;}
+.detail-body{padding:16px 16px 0;}
+.d-anime-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+.d-anime-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.d-anime-name{font-size:12px;color:var(--text3);}
+.d-place{font-size:21px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.d-ep{font-size:13px;color:var(--text2);margin-bottom:12px;}
+.dsec{margin-bottom:16px;}
+.dsec-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+.dsec-desc{font-size:14px;color:var(--text);line-height:1.75;}
+.dsec-row2{display:flex;gap:8px;margin-bottom:16px;}
+.dsec-row2 .dsec-access{flex:1;margin-bottom:0;}
+.dsec-access{font-size:14px;color:var(--text);background:var(--bg2);border-radius:var(--r-sm);padding:11px 13px;display:flex;align-items:flex-start;gap:8px;line-height:1.6;}
+.dsec-access i{font-size:18px;color:var(--text3);flex-shrink:0;margin-top:2px;}
+.time-badge{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:10px 14px;border-radius:var(--r-sm);background:#FFF8E7;border:0.5px solid #F0D080;flex-shrink:0;min-width:72px;}
+.time-badge-label{font-size:10px;color:#B8960A;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+.time-badge-val{font-size:15px;font-weight:700;color:#8A6800;}
+.memo-area{width:100%;font-size:14px;color:var(--text);background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;resize:none;outline:none;line-height:1.6;font-family:inherit;min-height:80px;}
+.memo-area::placeholder{color:var(--text3);}
+.memo-save-btn{margin-top:7px;font-size:14px;padding:8px 18px;border-radius:99px;background:var(--bg2);border:0.5px solid var(--border);color:var(--text2);cursor:pointer;}
+.memo-save-btn.saved{background:#E1F5EE;color:#0F6E56;border-color:#0F6E56;}
+/* フィードバック */
+.fb-section{margin-bottom:16px;}
+.fb-stars{display:flex;gap:6px;margin-bottom:10px;}
+.fb-star{font-size:28px;cursor:pointer;color:var(--border2);transition:color .1s;line-height:1;}
+.fb-star.on{color:#F5C518;}
+.fb-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+.fb-tag{font-size:12px;padding:5px 10px;border-radius:99px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text2);cursor:pointer;}
+.fb-tag.on-good{background:#E1F5EE;border-color:#1D9E75;color:#0F6E56;font-weight:500;}
+.fb-tag.on-bad{background:#FEE9E9;border-color:#E24B4A;color:#C0392B;font-weight:500;}
+.fb-send-btn{width:100%;padding:11px;border-radius:var(--r-lg);background:#5865F2;color:#fff;font-size:14px;font-weight:600;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+.fb-send-btn:disabled{background:var(--border2);cursor:default;}
+.fb-sent{text-align:center;font-size:13px;color:var(--green);padding:8px 0;}
+.nav-row{padding:10px 16px 20px;flex-shrink:0;background:var(--bg);}
+.nav-row-inner{display:flex;gap:8px;}
+.nav-big-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:15px;border-radius:var(--r-lg);background:var(--blue);color:#fff;font-size:15px;font-weight:500;text-decoration:none;}
+.arrived-from-detail{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:15px;border-radius:var(--r-lg);background:var(--green-light);border:1.5px solid var(--green);color:var(--green);font-size:15px;font-weight:500;cursor:pointer;}
+.detail-close{position:absolute;top:18px;right:16px;width:34px;height:34px;border-radius:50%;background:var(--bg2);border:0.5px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--text2);z-index:1;}
+.empty-sheet{padding:28px 16px;text-align:center;color:var(--text3);font-size:14px;background:var(--bg);}
+/* ウィザードモーダル */
+.wizard-modal-overlay{position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;}
+.wizard-modal-overlay.open{display:flex;}
+.wizard-modal{width:100%;background:var(--bg);border-radius:22px 22px 0 0;padding:0 0 24px;box-shadow:0 -4px 28px rgba(0,0,0,.18);max-height:85%;display:flex;flex-direction:column;}
+.wizard-modal-handle-row{padding:10px 0 4px;display:flex;justify-content:center;flex-shrink:0;}
+.wizard-modal-handle{width:38px;height:4px;border-radius:99px;background:var(--border2);}
+.wizard-modal-header{padding:4px 16px 12px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:0.5px solid var(--border);}
+.wizard-modal-title{font-size:15px;font-weight:700;color:var(--text);}
+.wizard-modal-close{width:30px;height:30px;border-radius:50%;background:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text2);}
+.wizard-modal-body{overflow-y:auto;flex:1;padding:16px;}
+/* 巡礼ウィザード */
+.wizard-wrap{padding:12px 16px;}
+.wizard-step{display:none;}
+.wizard-step.active{display:block;}
+.wizard-q{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.wizard-sub{font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.5;}
+.wizard-choices{display:flex;flex-direction:column;gap:8px;}
+.wizard-btn{width:100%;padding:12px 14px;border-radius:var(--r-lg);border:1.5px solid var(--border);background:var(--bg);font-size:14px;font-weight:500;color:var(--text);cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px;transition:all .15s;}
+.wizard-btn:hover{border-color:#1a1a2e;background:#f8f8ff;}
+.wizard-btn .wbtn-icon{font-size:20px;flex-shrink:0;}
+.wizard-btn .wbtn-text{flex:1;}
+.wizard-btn .wbtn-desc{font-size:11px;color:var(--text3);font-weight:400;display:block;margin-top:1px;}
+.wizard-back{background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:8px 0 4px;display:flex;align-items:center;gap:4px;}
+.wizard-result{}
+.wizard-result-comment{font-size:13px;color:var(--text2);background:#F0F4FF;border-radius:var(--r-sm);padding:10px 12px;margin-bottom:10px;line-height:1.6;}
+.wizard-result-comment b{color:#2855A0;}
+.wizard-result-comment .dist-warn{display:block;margin-top:5px;}
+.wizard-day-block{margin-bottom:14px;}
+.wizard-day-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;padding-bottom:4px;border-bottom:0.5px solid var(--border);}
+.wizard-route{display:flex;flex-direction:column;}
+.wizard-stop{display:flex;align-items:flex-start;gap:10px;padding:7px 0;}
+.wizard-stop:not(:last-child){border-bottom:0.5px solid var(--border);}
+.wizard-line{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:28px;}
+.wizard-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;}
+.wizard-connector{width:2px;flex:1;min-height:10px;background:var(--border2);margin-top:2px;}
+.wizard-stop-info{flex:1;min-width:0;padding-top:3px;}
+.wizard-stop-place{font-size:14px;font-weight:500;color:var(--text);}
+.wizard-stop-meta{display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;}
+.wizard-time-chip{font-size:11px;padding:2px 7px;border-radius:99px;background:#FFF8E7;color:#8A6800;border:0.5px solid #F0D080;font-weight:500;}
+.wizard-ep-chip{font-size:11px;padding:2px 7px;border-radius:99px;background:var(--bg2);color:var(--text3);}
+.wizard-use-btn{width:100%;padding:12px;border-radius:var(--r-lg);background:#1a1a2e;color:#fff;font-size:14px;font-weight:600;border:none;cursor:pointer;margin-top:10px;}
+.wizard-restart{width:100%;padding:10px;border-radius:var(--r-lg);background:var(--bg2);color:var(--text2);font-size:13px;border:0.5px solid var(--border);cursor:pointer;margin-top:6px;}
+/* 時間帯スライダー */
+.time-slider-wrap{margin-bottom:16px;}
+.time-slider-labels{display:flex;justify-content:space-between;margin-bottom:6px;}
+.time-slider-label{font-size:11px;color:var(--text3);}
+.time-slider-track{position:relative;height:36px;display:flex;align-items:center;}
+.time-slider-rail{position:absolute;left:0;right:0;height:4px;background:var(--bg3);border-radius:99px;}
+.time-slider-range{position:absolute;height:4px;background:#1a1a2e;border-radius:99px;}
+.time-slider-thumb{position:absolute;width:24px;height:24px;border-radius:50%;background:#1a1a2e;border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.25);cursor:pointer;transform:translateX(-50%);touch-action:none;z-index:2;}
+.time-slider-selected{margin-top:8px;text-align:center;font-size:13px;font-weight:600;color:#1a1a2e;}
+/* 巡礼モード選択 */
+.pil-mode-select{padding:12px 16px;}
+.pil-mode-title{font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+.pil-mode-cards{display:flex;gap:8px;}
+.pil-mode-card{flex:1;border:1.5px solid var(--border);border-radius:var(--r-lg);padding:12px 10px;cursor:pointer;text-align:center;background:var(--bg);transition:all .15s;}
+.pil-mode-card:hover{border-color:#1a1a2e;background:#f8f8ff;}
+.pil-mode-card.selected{border-color:#1a1a2e;background:#1a1a2e;color:#fff;}
+.pil-mode-card.selected .pil-mode-card-icon{color:#fff;}
+.pil-mode-card.selected .pil-mode-card-label{color:#fff;}
+.pil-mode-card.selected .pil-mode-card-desc{color:rgba(255,255,255,.7);}
+.pil-mode-card-icon{font-size:22px;margin-bottom:5px;color:var(--text2);}
+.pil-mode-card-label{font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;}
+.pil-mode-card-desc{font-size:11px;color:var(--text3);line-height:1.4;}
+/* 巡礼のすゝめ */
+.susume-section{margin-bottom:16px;}
+.susume-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.susume-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;}
+.susume-tabs{display:flex;gap:4px;}
+.susume-tab{font-size:11px;padding:4px 10px;border-radius:99px;border:0.5px solid var(--border);background:var(--bg2);color:var(--text2);cursor:pointer;}
+.susume-tab.active{background:#1a1a2e;color:#fff;border-color:transparent;}
+.susume-comment{font-size:13px;color:var(--text2);background:#F0F4FF;border-radius:var(--r-sm);padding:10px 12px;margin-bottom:10px;line-height:1.6;}
+.susume-comment b{color:#2855A0;}
+.susume-route{display:flex;flex-direction:column;}
+.susume-stop{display:flex;align-items:flex-start;gap:10px;padding:8px 0;}
+.susume-stop:not(:last-child){border-bottom:0.5px solid var(--border);}
+.susume-line{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:28px;}
+.susume-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;}
+.susume-connector{width:2px;flex:1;min-height:10px;background:var(--border2);margin-top:2px;}
+.susume-info{flex:1;min-width:0;padding-top:3px;}
+.susume-place{font-size:14px;font-weight:500;color:var(--text);}
+.susume-meta{display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;}
+.susume-time-chip{font-size:11px;padding:2px 7px;border-radius:99px;background:#FFF8E7;color:#8A6800;border:0.5px solid #F0D080;font-weight:500;}
+.susume-ep-chip{font-size:11px;padding:2px 7px;border-radius:99px;background:var(--bg2);color:var(--text3);}
+.susume-current-badge{font-size:11px;color:var(--blue);}
+.susume-empty{padding:14px;text-align:center;font-size:13px;color:var(--text3);}
+</style>
+</head>
+<body>
+<div class="phone-frame">
+<div id="app">
+  <div id="map"></div>
+  <div class="toast" id="toast"></div>
+  <div class="top-ui">
+    <div class="search-row">
+      <div class="search-pill"><i class="ti ti-map-pin"></i><input type="text" id="placeSearch" placeholder="場所を検索" oninput="applyFilter()"/></div>
+      <div class="anime-pill-wrap" id="animeWrap">
+        <div class="anime-pill" id="animePill" onclick="toggleDD(event)">
+          <i class="ti ti-movie"></i><span class="anime-pill-label" id="pillLabel">アニメを選択</span><i class="ti ti-chevron-down chev"></i>
+        </div>
+        <div class="anime-dd" id="animeDD">
+          <div class="dd-search-row"><input type="text" id="ddInput" placeholder="アニメ名を検索…" oninput="renderDDItems(this.value)"/></div>
+          <div class="dd-all" onclick="selectAnime('')">すべてのアニメ</div>
+          <div id="ddItems"></div>
+        </div>
+      </div>
+      <button class="icon-btn" id="locBtn" onclick="getLocation()"><i class="ti ti-current-location"></i></button>
+    </div>
+    <div id="pilControls" style="display:none;">
+      <div class="pil-banner visible" id="pilBanner">
+        <span class="pil-banner-text" id="pilBannerText">ピンをタップして順番を設定</span>
+        <button class="pil-exit-btn" onclick="exitPilMode()">終了</button>
+      </div>
+    </div>
+  </div>
+  <div id="locBanner" class="loc-banner"><i class="ti ti-info-circle"></i><span id="locMsg"></span></div>
+  <div class="pil-hud" id="pilHud"><div class="pil-next-card" id="pilNextCard"></div></div>
+  <div class="bottom-sheet" id="listSheet">
+    <div class="sheet-handle-row" onclick="toggleSheet()"><div class="sheet-handle"></div></div>
+    <div class="sheet-header">
+      <span class="sheet-title" id="sheetTitle">聖地一覧</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="sheet-count" id="sheetCount">0件</span>
+        <button class="pil-start-btn" id="pilStartBtn" onclick="startPilgrimage()" disabled style="display:none;"><i class="ti ti-route"></i>スタート</button>
+      </div>
+    </div>
+    <div class="sheet-content collapsed" id="sheetContent" id="sheetContent" style="max-height:50vh;overflow-y:auto;"></div>
+  </div>
+  <!-- 巡礼ウィザードモーダル -->
+  <div class="wizard-modal-overlay" id="wizardOverlay" onclick="onWizardOverlayClick(event)">
+    <div class="wizard-modal" id="wizardModal">
+      <div class="wizard-modal-handle-row"><div class="wizard-modal-handle"></div></div>
+      <div class="wizard-modal-header">
+        <span class="wizard-modal-title">✨ 巡礼のすゝめ</span>
+        <button class="wizard-modal-close" onclick="closeWizardModal()"><i class="ti ti-x"></i></button>
+      </div>
+      <div class="wizard-modal-body" id="wizardModalBody"></div>
+    </div>
+  </div>
+
+  <div class="detail-overlay" id="detailOverlay" onclick="closeDetail()"></div>
+  <div class="detail-sheet" id="detailSheet">
+    <button class="detail-close" onclick="closeDetail()"><i class="ti ti-x"></i></button>
+    <div class="detail-handle-row"><div class="detail-handle"></div></div>
+    <div class="detail-scroll" id="detailScroll"></div>
+    <div class="nav-row"><div class="nav-row-inner" id="navRowInner">
+      <a class="nav-big-btn" id="detailNavBtn" href="#" target="_blank"><i class="ti ti-navigation"></i>Google Mapsで案内</a>
+    </div></div>
+  </div>
+</div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ============================================================
+// アニメデータ — アニメを追加するときはここに1ブロック追加
+// time: '早朝' '午前' '昼' '午後' '夕方' '夜' '終日'
+// ============================================================
+const ANIME_DATA = [
+
+  { title:'君の名は。', spots:[
+    { place:'須賀神社', lat:35.6883, lng:139.7201, episode:'ラストシーン', time:'夕方', desc:'瀧と三葉が再会した有名な階段。映画を象徴する超人気巡礼地で、夕暮れ時は作品の空気感を特に強く感じられる。', access:'JR四ツ谷駅から徒歩約10分' },
+    { place:'諏訪湖', lat:36.0384, lng:138.0919, episode:'3話', time:'夕方', desc:'糸守湖のモデルとして知られる湖。湖畔の景色や夕焼けが映画の雰囲気に非常に近く、巡礼ファンに人気。', access:'JR上諏訪駅から徒歩約15分' },
+    { place:'飛騨古川駅', lat:36.2381, lng:137.1897, episode:'終盤', time:'昼', desc:'瀧が三葉を探して訪れた駅。駅舎や跨線橋の再現度が高く、映画そのままの景色を体感できる。', access:'JR飛騨古川駅直結' },
+    { place:'飛騨市図書館', lat:36.2375, lng:137.1886, episode:'終盤', time:'昼', desc:'瀧たちが糸守町について調べた図書館のモデル。静かな館内と落ち着いた雰囲気が作品世界を思わせる。', access:'飛騨古川駅から徒歩約3分' },
+    { place:'気多若宮神社', lat:36.2467, lng:137.1864, episode:'宮水神社モデル', time:'朝', desc:'宮水神社のモデルの一つとされる神社。自然に囲まれた神秘的な空気感があり、作品との親和性が高い。', access:'飛騨古川駅から徒歩約20分' },
+    { place:'新宿駅南口', lat:35.6880, lng:139.7004, episode:'冒頭', time:'朝', desc:'瀧の日常シーンで登場した場所。東京らしい人混みや都会感が作品冒頭の雰囲気を再現している。', access:'JR新宿駅南口すぐ' },
+    { place:'国立新美術館', lat:35.6653, lng:139.7264, episode:'デートシーン', time:'昼', desc:'奥寺先輩とのデートシーンで登場した場所。ガラス張りの近未来的な空間が印象的。', access:'東京メトロ乃木坂駅直結' },
+    { place:'代々木会館跡地付近', lat:35.6830, lng:139.7022, episode:'東京シーン', time:'夜', desc:'映画に登場した印象的な雑居ビルのモデル周辺。夜になると作品の都会的な空気感をより感じられる。', access:'JR新宿駅から徒歩約8分' },
+    { place:'信濃町駅前歩道橋', lat:35.6802, lng:139.7203, episode:'通学シーン', time:'朝', desc:'瀧の通学シーンを思わせる場所。周辺の街並みや歩道橋の構図が映画と非常によく似ている。', access:'JR信濃町駅すぐ' },
+    { place:'諏訪湖展望エリア', lat:36.0465, lng:138.1142, episode:'回想シーン', time:'夕方', desc:'糸守湖を連想させる諏訪湖を高所から見渡せるスポット。夕焼け時の景色は特に人気が高い。', access:'上諏訪駅から車で約15分' },
+  ]},
+
+  { title:'ぼっち・ざ・ろっく！', spots:[
+    { place:'下北沢駅', lat:35.6618, lng:139.6688, episode:'1話', time:'昼', desc:'後藤ひとりが初めて本格的に下北沢へ来た場所。作品内でも何度も登場する巡礼の起点で、駅周辺には作中再現度の高いスポットが多い。', access:'小田急線・京王井の頭線 下北沢駅' },
+    { place:'SHELTER', lat:35.6607, lng:139.6684, episode:'5話', time:'夜', desc:'ライブハウス「STARRY」のモデルとして有名な場所。ぼざろファン定番の聖地で、実際にライブハウスとして営業している。', access:'下北沢駅から徒歩約3分' },
+    { place:'下北沢踏切', lat:35.6599, lng:139.6678, episode:'複数話', time:'夕方', desc:'日常シーンでたびたび登場した踏切。下北沢らしい空気感が強く、写真映えする巡礼スポットとして人気。', access:'下北沢駅から徒歩約5分' },
+    { place:'ヴィレッジヴァンガード下北沢店付近', lat:35.6612, lng:139.6685, episode:'2話', time:'昼', desc:'作中の街並み再現で有名なエリア。ぼざろ特有のサブカル感や下北沢の雰囲気を味わえる。', access:'下北沢駅から徒歩約2分' },
+    { place:'東洋百貨店', lat:35.6605, lng:139.6681, episode:'複数話', time:'昼', desc:'作中背景として登場した下北沢の有名スポット。独特な古着屋街の空気感が作品の雰囲気と非常に合っている。', access:'下北沢駅から徒歩約4分' },
+    { place:'下北沢南口商店街', lat:35.6609, lng:139.6690, episode:'複数話', time:'夕方', desc:'ひとり達が歩いていた商店街エリア。実際に歩くと作品内の景色をかなり再現できる巡礼スポット。', access:'下北沢駅南口すぐ' },
+    { place:'BONUS TRACK', lat:35.6637, lng:139.6710, episode:'日常シーン', time:'昼', desc:'下北沢らしい落ち着いた空気感を感じられる施設。作中の散歩シーンを思わせる雰囲気がある。', access:'下北沢駅から徒歩約8分' },
+    { place:'下北線路街 空き地', lat:35.6628, lng:139.6699, episode:'複数話', time:'昼', desc:'イベントや交流シーンを連想させる開放的なエリア。下北沢文化を象徴する場所の一つ。', access:'下北沢駅から徒歩約6分' },
+    { place:'下北沢駅前広場', lat:35.6616, lng:139.6686, episode:'1話', time:'昼', desc:'ひとりが不安そうに立っていた印象的な場所。巡礼開始地点として写真を撮るファンが多い。', access:'下北沢駅東口すぐ' },
+    { place:'ライブハウスMOSAiC付近', lat:35.6595, lng:139.6687, episode:'ライブ関連', time:'夜', desc:'下北沢ライブ文化を象徴する場所の一つ。ぼざろ世界観との相性が良く、夜の雰囲気が特に良い。', access:'下北沢駅から徒歩約5分' },
+  ]},
+
+  { title:'けいおん！', spots:[
+    { place:'豊郷小学校旧校舎群', lat:35.1985, lng:136.2296, episode:'複数話', time:'昼', desc:'桜が丘高校のモデルとして有名な超定番聖地。部室や階段など再現度が非常に高く、けいおん！巡礼文化を象徴する場所。', access:'近江鉄道 豊郷駅から徒歩約10分' },
+    { place:'旧校舎 部室モデル', lat:35.1986, lng:136.2297, episode:'放課後ティータイム', time:'昼', desc:'軽音部の部室を再現した展示エリア。ティーセットや机配置など細かな再現があり、ファン人気が高い。', access:'豊郷小学校旧校舎内' },
+    { place:'旧校舎 階段', lat:35.1984, lng:136.2295, episode:'複数話', time:'昼', desc:'唯たちが駆け上がっていた印象的な階段。作中カットの再現写真スポットとして有名。', access:'豊郷小学校旧校舎内' },
+    { place:'豊郷駅', lat:35.2010, lng:136.2313, episode:'通学シーン', time:'朝', desc:'けいおん！巡礼の玄関口となる駅。ファン向け展示や装飾が行われることもある。', access:'近江鉄道 豊郷駅' },
+    { place:'豊郷町観光案内所', lat:35.2007, lng:136.2310, episode:'巡礼スポット', time:'昼', desc:'巡礼マップや関連資料を入手できる拠点。初めて訪れるファンにも便利な場所。', access:'豊郷駅前' },
+    { place:'講堂前', lat:35.1983, lng:136.2298, episode:'学校シーン', time:'夕方', desc:'放課後の学校の空気感を感じられるエリア。夕方は作品らしい穏やかな雰囲気になる。', access:'豊郷小学校旧校舎敷地内' },
+    { place:'校舎前ベンチ', lat:35.1987, lng:136.2294, episode:'日常シーン', time:'昼', desc:'唯たちの日常を連想させる休憩スポット。巡礼中の写真撮影にも人気。', access:'豊郷小学校旧校舎敷地内' },
+    { place:'豊郷小学校前道路', lat:35.1988, lng:136.2292, episode:'登下校シーン', time:'朝', desc:'メンバー達の通学風景を思わせる場所。朝の静かな空気感が作品とよく合っている。', access:'豊郷小学校前' },
+    { place:'旧校舎音楽室モデル周辺', lat:35.1985, lng:136.2299, episode:'演奏シーン', time:'昼', desc:'演奏シーンを連想させるエリア。校舎内の空気感そのものがけいおん！らしさを感じさせる。', access:'豊郷小学校旧校舎内' },
+    { place:'校庭', lat:35.1982, lng:136.2296, episode:'学校生活シーン', time:'夕方', desc:'学校の日常風景を象徴する場所。夕方の校庭は特に青春感が強く、作品の余韻を感じられる。', access:'豊郷小学校旧校舎敷地内' },
+    { place:'豊郷町立図書館', lat:35.1989, lng:136.2298, episode:'日常シーン', time:'昼', desc:'校舎周辺の日常風景を連想させる静かなスポット。落ち着いた雰囲気がけいおん！の空気感に合っている。', access:'豊郷小学校旧校舎付近' },
+    { place:'豊郷町役場周辺', lat:35.1995, lng:136.2301, episode:'街並みシーン', time:'昼', desc:'作品内の通学や移動シーンを思わせるエリア。地方の穏やかな町並みを感じられる。', access:'豊郷駅から徒歩約8分' },
+    { place:'豊郷郵便局前', lat:35.1998, lng:136.2307, episode:'日常パート', time:'夕方', desc:'下校シーンを連想させる地域スポット。夕方になるとけいおん！らしい青春感が強くなる。', access:'豊郷駅から徒歩約6分' },
+    { place:'けいおん！カフェスペース', lat:35.1986, lng:136.2297, episode:'放課後シーン', time:'昼', desc:'旧校舎内に設置されることがあるファン交流スペース。巡礼ファン同士の交流地点としても人気。', access:'豊郷小学校旧校舎内' },
+    { place:'豊郷小学校講堂', lat:35.1981, lng:136.2299, episode:'ライブシーン', time:'昼', desc:'文化祭ライブを思わせる場所。学校建築としても非常に美しく、けいおん！の青春感を象徴している。', access:'豊郷小学校旧校舎敷地内' },
+    { place:'校舎廊下', lat:35.1985, lng:136.2296, episode:'複数話', time:'昼', desc:'唯たちが歩いていた印象的な廊下。窓から差し込む光が作品の柔らかい雰囲気を感じさせる。', access:'豊郷小学校旧校舎内' },
+    { place:'部室前廊下', lat:35.1986, lng:136.2298, episode:'放課後シーン', time:'夕方', desc:'放課後ティータイムの空気感を最も感じやすい場所の一つ。夕方は特に作品再現度が高い。', access:'豊郷小学校旧校舎内' },
+    { place:'旧校舎中庭', lat:35.1984, lng:136.2297, episode:'学校生活シーン', time:'昼', desc:'学校の日常風景を感じられる静かなスペース。ゆったりした空気感がけいおん！らしい。', access:'豊郷小学校旧校舎内' },
+    { place:'豊郷石畳通り', lat:35.1992, lng:136.2305, episode:'登下校シーン', time:'朝', desc:'通学路の雰囲気を感じられるエリア。朝の静かな町並みが作品の世界観と非常に合っている。', access:'豊郷駅から徒歩約7分' },
+    { place:'豊郷駅ホーム', lat:35.2011, lng:136.2315, episode:'移動シーン', time:'夕方', desc:'帰宅シーンを思わせる場所。夕方の電車待ちの空気感がけいおん！特有の青春感を演出している。', access:'近江鉄道 豊郷駅' },
+  ]},
+
+  { title:'ラブライブ！', spots:[
+    { place:'神田明神', lat:35.7020, lng:139.7679, episode:'複数話', time:'昼', desc:"μ'sメンバーが訪れたことで有名な神社。ラブライブ！を代表する聖地の一つで、絵馬やコラボイベントも多く開催されてきた。", access:'JR御茶ノ水駅から徒歩約7分' },
+    { place:'秋葉原駅', lat:35.6984, lng:139.7730, episode:'複数話', time:'昼', desc:"μ'sの活動拠点である秋葉原の中心駅。作品内で何度も登場し、巡礼のスタート地点として人気が高い。", access:'JR秋葉原駅' },
+    { place:'秋葉原UDX', lat:35.7006, lng:139.7725, episode:'ライブ関連', time:'夜', desc:'秋葉原を象徴する大型施設。周辺の景観も含めて作中の雰囲気を感じやすいスポット。', access:'秋葉原駅から徒歩約3分' },
+    { place:'竹むら', lat:35.6957, lng:139.7687, episode:'和菓子屋モデル', time:'昼', desc:"穂乃果の実家「穂むら」のモデルとして有名な老舗甘味処。ラブライブ！巡礼では外せない場所の一つ。", access:'淡路町駅から徒歩約3分' },
+    { place:'昌平橋', lat:35.6980, lng:139.7693, episode:'日常シーン', time:'夕方', desc:'秋葉原と御茶ノ水を結ぶ橋。メンバーの日常風景を思わせる景色が広がる。', access:'秋葉原駅から徒歩約6分' },
+    { place:'御茶ノ水駅前', lat:35.6993, lng:139.7657, episode:'通学シーン', time:'朝', desc:'音ノ木坂学院周辺のモデル地域として知られるエリア。坂道や街並みに作品の面影が残る。', access:'JR御茶ノ水駅' },
+    { place:'神田川沿い', lat:35.6991, lng:139.7672, episode:'日常シーン', time:'夕方', desc:'メンバー達の何気ない日常を連想させるエリア。春には桜も美しく、散策にも向いている。', access:'御茶ノ水駅から徒歩約5分' },
+    { place:'秋葉原中央通り', lat:35.6990, lng:139.7716, episode:'複数話', time:'昼', desc:'アイドル活動の舞台となった秋葉原を象徴するメインストリート。休日には歩行者天国になることもある。', access:'秋葉原駅電気街口から徒歩約2分' },
+    { place:'万世橋', lat:35.6972, lng:139.7702, episode:'移動シーン', time:'夕方', desc:'秋葉原周辺を巡る際によく通るランドマーク。周辺にはラブライブ！ファンに人気の撮影ポイントも多い。', access:'秋葉原駅から徒歩約5分' },
+    { place:'アトレ秋葉原', lat:35.6985, lng:139.7720, episode:'街並みシーン', time:'昼', desc:'コラボイベントの開催地としても有名な商業施設。作品と現実が交差する場所としてファンに親しまれている。', access:'JR秋葉原駅直結' },
+    { place:'ニコライ堂', lat:35.6995, lng:139.7650, episode:'複数話', time:'昼', desc:'御茶ノ水のランドマーク。音ノ木坂学院周辺の風景として登場し、作品の東京らしい街並みを象徴している。', access:'JR御茶ノ水駅から徒歩約3分' },
+    { place:'聖橋', lat:35.6994, lng:139.7663, episode:'日常シーン', time:'夕方', desc:"μ'sメンバーの通学風景を思わせる橋。神田川と電車を同時に見渡せる人気撮影スポット。", access:'御茶ノ水駅から徒歩約2分' },
+    { place:'神保町駅周辺', lat:35.6958, lng:139.7586, episode:'複数話', time:'昼', desc:'希や絵里が歩いていたシーンを連想させるエリア。本の街としても有名で散策が楽しい。', access:'神保町駅直結' },
+    { place:'秋葉原電気街', lat:35.6989, lng:139.7710, episode:'アイドル活動シーン', time:'昼', desc:"μ'sが活動していた秋葉原の中心地。アニメショップやゲームセンターが立ち並び作品の雰囲気を味わえる。", access:'秋葉原駅から徒歩約1分' },
+    { place:'お茶の水公園', lat:35.6983, lng:139.7639, episode:'日常シーン', time:'昼', desc:'メンバーたちの会話シーンを思わせる落ち着いた公園。巡礼の休憩ポイントとしてもおすすめ。', access:'御茶ノ水駅から徒歩約5分' },
+    { place:'淡路公園', lat:35.6952, lng:139.7670, episode:'日常シーン', time:'夕方', desc:'秋葉原と御茶ノ水の中間にある公園。周辺には作品を思わせる街並みが残っている。', access:'淡路町駅から徒歩約3分' },
+    { place:'秋葉原ラジオ会館', lat:35.6978, lng:139.7710, episode:'街並みシーン', time:'昼', desc:'秋葉原を象徴する建物の一つ。作中背景としても確認できる巡礼スポット。', access:'秋葉原駅から徒歩約2分' },
+    { place:'末広町駅周辺', lat:35.7020, lng:139.7718, episode:'複数話', time:'昼', desc:'秋葉原北側エリアの巡礼スポット。休日は多くのファンで賑わう。', access:'東京メトロ銀座線 末広町駅' },
+    { place:'秋葉原公園', lat:35.6967, lng:139.7750, episode:'日常シーン', time:'昼', desc:'メンバー達の穏やかな日常を連想させる場所。秋葉原巡礼の休憩地点としても便利。', access:'秋葉原駅から徒歩約5分' },
+    { place:'万世橋高架下施設 mAAch ecute', lat:35.6971, lng:139.7694, episode:'街並みシーン', time:'夜', desc:'レンガ造りの高架下施設。夜はライトアップされ、ラブライブ！の都会的な雰囲気を感じられる。', access:'秋葉原駅から徒歩約6分' },
+    { place:'秋葉原駅 電気街口広場', lat:35.6987, lng:139.7719, episode:'複数話', time:'昼', desc:"μ'sの活動エリアを象徴する広場。秋葉原らしい活気を感じられ、巡礼写真の定番スポット。", access:'JR秋葉原駅 電気街口すぐ' },
+    { place:'JR御茶ノ水駅 聖橋口', lat:35.6995, lng:139.7660, episode:'通学シーン', time:'朝', desc:'音ノ木坂学院周辺のモデル地域として知られる場所。通学風景を再現しながら歩くファンも多い。', access:'JR御茶ノ水駅' },
+    { place:'神田郵便局前交差点', lat:35.6955, lng:139.7700, episode:'街並みシーン', time:'昼', desc:'作中背景の再現に使われることがあるエリア。秋葉原から神田へ歩く巡礼ルート上にある。', access:'神田駅から徒歩約5分' },
+    { place:'ワテラス前', lat:35.6985, lng:139.7650, episode:'日常シーン', time:'夕方', desc:'御茶ノ水エリアの近代的な街並みを感じられる場所。周辺散策ルートに組み込みやすい。', access:'新御茶ノ水駅から徒歩約3分' },
+    { place:'神田川遊歩道', lat:35.6990, lng:139.7668, episode:'日常シーン', time:'午前', desc:'桜の時期は特に美しく、作品の穏やかな日常パートを思わせる景色が広がる。', access:'御茶ノ水駅から徒歩約3分' },
+    { place:'秋葉原駅 中央改札付近', lat:35.6984, lng:139.7730, episode:'複数話', time:'昼', desc:'待ち合わせや移動シーンを連想させるスポット。秋葉原巡礼の起点として便利。', access:'JR秋葉原駅' },
+    { place:'万世橋交差点', lat:35.6970, lng:139.7705, episode:'街並みシーン', time:'夜', desc:'秋葉原と神田を結ぶ象徴的な交差点。夜になると都会的な雰囲気が強まる。', access:'秋葉原駅から徒歩約5分' },
+    { place:'秋葉原オノデン前', lat:35.6982, lng:139.7713, episode:'秋葉原シーン', time:'昼', desc:'秋葉原らしい景色を代表する場所の一つ。電気街の賑わいを体感できる。', access:'秋葉原駅から徒歩約2分' },
+    { place:'UDXデッキ', lat:35.7005, lng:139.7727, episode:'街並みシーン', time:'夜', desc:'秋葉原の街並みを見渡せる高架デッキ。夜景も美しく巡礼写真に向いている。', access:'秋葉原駅から徒歩約3分' },
+    { place:'神田明神男坂', lat:35.7021, lng:139.7678, episode:'複数話', time:'夕方', desc:'神田明神境内でも特に人気のスポット。ラブライブ！ファンの撮影ポイントとして知られる。', access:'神田明神境内' },
+  ]},
+
+  { title:'涼宮ハルヒの憂鬱', spots:[
+    { place:'西宮北高校付近', lat:34.7377, lng:135.3418, episode:'学校モデル', time:'午前', desc:'県立北高校のモデル。坂道や通学路が作品そのまま。', access:'阪急甲陽線・甲陽園駅から徒歩約15分。' },
+  ]},
+
+  /* ゆるキャン△は専用UI検討中のため一時非表示
+  { title:'ゆるキャン△', spots:[
+    { place:'浩庵キャンプ場', lat:35.5175, lng:138.5287, episode:'1話', time:'朝', desc:'志摩リンがソロキャンプをしていた超有名聖地。本栖湖越しの富士山は作品を象徴する景色で、朝方は特に再現度が高い。', access:'JR身延駅からバス約50分' },
+    { place:'本栖湖', lat:35.4637, lng:138.5900, episode:'1話', time:'朝', desc:'ゆるキャン△を代表する景観スポット。静かな湖と富士山の組み合わせが美しく、巡礼人気が非常に高い。', access:'身延駅から車で約40分' },
+    { place:'身延駅', lat:35.4116, lng:138.4421, episode:'複数話', time:'昼', desc:'なでしこ達の移動シーンで登場した駅。山梨巡礼の拠点として利用しやすく、作品ファンも多く訪れる。', access:'JR身延線 身延駅' },
+    { place:'四尾連湖', lat:35.4652, lng:138.4653, episode:'7話', time:'夕方', desc:'静かな湖畔キャンプ地として登場した場所。自然に囲まれた落ち着いた雰囲気が作品世界に非常に近い。', access:'身延駅から車で約30分' },
+    { place:'ふもとっぱらキャンプ場', lat:35.4185, lng:138.5614, episode:'12話', time:'朝', desc:'広大な草原と巨大な富士山で有名なキャンプ場。ゆるキャン△屈指の人気巡礼地で、冬キャンプの聖地としても知られる。', access:'富士宮駅から車で約35分' },
+    { place:'なでしこ橋（本栖みち付近）', lat:35.4622, lng:138.5908, episode:'1話', time:'昼', desc:'なでしこが自転車で移動していた周辺エリア。富士山と道路の構図が作品にかなり近い。', access:'本栖湖周辺' },
+    { place:'セルバみのぶ店', lat:35.4103, lng:138.4415, episode:'買い出しシーン', time:'昼', desc:'なでしこ達が買い出しをしていたスーパーのモデル。実際にキャンプ用品や食材を購入しながら巡礼できる。', access:'身延駅から徒歩約10分' },
+    { place:'富士川駅', lat:35.1502, lng:138.6620, episode:'移動シーン', time:'夕方', desc:'リンやなでしこ達の移動シーンを連想させる駅。地方駅らしい静かな雰囲気が作品と合っている。', access:'JR東海道本線 富士川駅' },
+    { place:'朝霧高原', lat:35.4097, lng:138.5850, episode:'キャンプシーン', time:'朝', desc:'広大な高原風景と富士山が特徴のエリア。早朝の空気感が特にゆるキャン△らしい。', access:'富士宮駅から車で約40分' },
+    { place:'道の駅 朝霧高原', lat:35.4212, lng:138.5768, episode:'休憩シーン', time:'昼', desc:'リン達が立ち寄った休憩地点として有名。富士山を見ながら食事や休憩ができる人気スポット。', access:'朝霧高原エリア' },
+    { place:'笛吹川フルーツ公園', lat:35.6931, lng:138.6848, episode:'夜景シーン', time:'夜', desc:'美しい夜景スポットとして登場。夜になると山梨盆地の景色が広がり、作品の落ち着いた雰囲気を感じられる。', access:'山梨市駅から車で約10分' },
+    { place:'大垣千明のバイト先モデル周辺', lat:35.4112, lng:138.4410, episode:'日常シーン', time:'昼', desc:'日常パートで登場する身延町周辺エリア。ゆるキャン△特有の穏やかな日常感を味わえる。', access:'身延駅周辺' },
+    { place:'リンの通学路モデル付近', lat:35.6950, lng:138.5690, episode:'通学シーン', time:'朝', desc:'リンの日常風景を感じられるエリア。朝の静かな空気感が作品世界とよく合っている。', access:'甲府周辺エリア' },
+    { place:'ほったらかし温泉', lat:35.6795, lng:138.6992, episode:'温泉回', time:'夜', desc:'ゆるキャン△屈指の人気温泉聖地。夜景と露天風呂が有名で、巡礼と温泉体験を同時に楽しめる。', access:'山梨市駅から車で約15分' },
+    { place:'長者ヶ岳登山口', lat:35.4547, lng:138.5610, episode:'アウトドアシーン', time:'朝', desc:'富士山周辺の自然を感じられる登山エリア。静かな森林と山道がゆるキャン△のアウトドア感を強く感じさせる。', access:'本栖湖周辺からアクセス可能' },
+  ]},
+  */
+
+  { title:'STEINS;GATE', spots:[
+    { place:'秋葉原駅', lat:35.6984, lng:139.7730, episode:'複数話', time:'昼', desc:'物語の中心舞台である秋葉原の玄関口。岡部倫太郎たちが歩いていた景色を実際に体感できる、シュタゲ巡礼のスタート地点。', access:'JR秋葉原駅' },
+    { place:'ラジオ会館', lat:35.6978, lng:139.7710, episode:'1話', time:'昼', desc:'シュタゲを象徴する超重要スポット。序盤の衝撃的なシーンでも登場し、ファンなら必ず訪れたい聖地。', access:'秋葉原駅から徒歩約2分' },
+    { place:'柳森神社', lat:35.6959, lng:139.7731, episode:'日常シーン', time:'夕方', desc:'作中の日常パートを思わせる静かな神社。秋葉原の喧騒から少し離れた落ち着いた雰囲気が印象的。', access:'秋葉原駅から徒歩約7分' },
+    { place:'中央通り', lat:35.6988, lng:139.7715, episode:'複数話', time:'昼', desc:'岡部たちが頻繁に歩いていた秋葉原のメインストリート。シュタゲらしい電気街の空気感を最も感じやすい。', access:'秋葉原駅電気街口すぐ' },
+    { place:'神田明神', lat:35.7020, lng:139.7679, episode:'散策シーン', time:'朝', desc:'秋葉原近辺の象徴的スポットとして登場。高台からの景色と静かな空気感が作品世界にマッチしている。', access:'御茶ノ水駅から徒歩約7分' },
+    { place:'秋葉原UDX', lat:35.7006, lng:139.7725, episode:'街並みシーン', time:'夜', desc:'近未来的な秋葉原の雰囲気を感じられる大型施設。夜のライトアップ時はシュタゲ感が強い。', access:'秋葉原駅から徒歩約3分' },
+    { place:'万世橋', lat:35.6972, lng:139.7702, episode:'移動シーン', time:'夕方', desc:'岡部たちの移動シーンを思わせる橋。夕方になると都会的で少し寂しげなシュタゲ特有の空気を感じられる。', access:'秋葉原駅から徒歩約6分' },
+    { place:'昌平橋', lat:35.6980, lng:139.7693, episode:'日常シーン', time:'夜', desc:'神田川沿いの印象的な橋。夜の街灯や静かな川沿いがシュタゲのSF感とよく合っている。', access:'御茶ノ水駅から徒歩約5分' },
+    { place:'秋葉原電気街口', lat:35.6986, lng:139.7717, episode:'複数話', time:'昼', desc:'未来ガジェット研究所メンバーが集まるシーンを連想させる場所。観光客も多く、活気ある秋葉原を味わえる。', access:'JR秋葉原駅 電気街口' },
+    { place:'神田川沿い', lat:35.6975, lng:139.7688, episode:'回想シーン', time:'夜', desc:'静かな夜景が印象的なエリア。シュタゲ特有の孤独感や時間の流れを感じられる雰囲気がある。', access:'秋葉原駅から徒歩約8分' },
+  ]},
+
+  { title:'エヴァンゲリオン', spots:[
+    { place:'箱根湯本駅', lat:35.2323, lng:139.1069, episode:'第3新東京市モデル', time:'終日', desc:'箱根巡礼のスタート地点。エヴァ関連展示も多い。', access:'小田急線で新宿から約85分。' },
+    { place:'大涌谷', lat:35.2450, lng:139.0193, episode:'使徒戦エリア', time:'昼', desc:'荒々しい火山地帯の景色がエヴァ世界観とマッチ。', access:'箱根湯本駅からバス・ロープウェイで約40分。' },
+  ]},
+
+  { title:'氷菓', spots:[
+    { place:'高山本町通り', lat:36.1461, lng:137.2579, episode:'古典部巡礼', time:'午前', desc:'古典部メンバーが歩いた飛騨高山の街並み。', access:'JR高山本線・高山駅から徒歩約10分。' },
+  ]},
+
+  { title:'聲の形', spots:[
+    { place:'大垣駅', lat:35.3673, lng:136.6170, episode:'序盤シーン', time:'終日', desc:'物語序盤の重要な場所。大垣全体が巡礼地。', access:'JR東海道本線・大垣駅。名古屋から約20分。' },
+  ]},
+
+  { title:'Re:ゼロから始める異世界生活', spots:[
+    { place:'渋温泉金具屋', lat:36.7335, lng:138.4128, episode:'旅館モデル', time:'夜', desc:'リゼロの聖地としても人気があり、夜のライトアップ時は異世界感が強い。温泉街全体の空気が作品世界に近い。', access:'長野電鉄・湯田中駅からバスまたはタクシーで約5分。' },
+  ]},
+
+  { title:'らき☆すた', spots:[
+    { place:'鷲宮神社', lat:36.1122, lng:139.6585, episode:'作中頻出の神社', time:'午前', desc:'アニメ聖地巡礼文化を全国に広めた代表的スポット。今でも多くのファンが訪れる。', access:'東武伊勢崎線・鷲宮駅から徒歩約20分。' },
+  ]},
+
+  { title:'ガールズ＆パンツァー', spots:[
+    { place:'大洗磯前神社', lat:36.3147, lng:140.5750, episode:'大洗の代表的聖地', time:'早朝', desc:'海沿いの景色と作品世界が非常によく一致しており、町全体でガルパン文化が根付いている。', access:'鹿島臨海鉄道・大洗駅から徒歩約25分またはバス。' },
+  ]},
+
+  { title:'Free!', spots:[
+    { place:'岩美駅', lat:35.5745, lng:134.3344, episode:'舞台モデル地域', time:'午前', desc:'作品舞台のモデル地域として知られる鳥取県岩美町の駅。周辺の海岸風景も再現度が高い。', access:'JR山陰本線・岩美駅。鳥取駅から約15分。' },
+  ]},
+
+  { title:'あの日見た花の名前を僕達はまだ知らない。', spots:[
+    { place:'旧秩父橋', lat:35.9907, lng:139.0849, episode:'印象的な象徴シーン', time:'夕方', desc:'めんま達を象徴する印象的な場所。夕方の景色が特に美しく、作品の切なさや青春感を強く感じられる。', access:'秩父鉄道・秩父駅から徒歩約10分。' },
+  ]},
+
+  { title:'CLANNAD', spots:[
+    { place:'古河渚の坂道モデル付近', lat:34.6937, lng:135.5023, episode:'通学坂シーン', time:'午前', desc:'作品を象徴する通学坂をイメージした場所として知られる。静かな住宅街の雰囲気がCLANNADの世界観に近い。', access:'JR東西線・御幣島駅周辺。' },
+  ]},
+
+  { title:'BanG Dream!', spots:[
+    { place:'羽沢珈琲店モデル付近', lat:35.6595, lng:139.7005, episode:'日常シーン', time:'午後', desc:"Poppin'Partyメンバー達の日常シーンを感じられるエリア。バンドリらしい空気感を楽しめる。", access:'東急東横線・学芸大学駅周辺。' },
+  ]},
+
+  { title:'ラブライブ！サンシャイン!!', spots:[
+    { place:'沼津港', lat:35.0176, lng:138.8577, episode:'Aqoursの舞台', time:'夕方', desc:'Aqoursの舞台・沼津を代表する巡礼地。街全体がラブライブ色に染まっている。', access:'JR東海道本線・沼津駅から徒歩約15分またはバス。' },
+  ]},
+
+  { title:'スーパーカブ', spots:[
+    { place:'北杜市日野春駅', lat:35.8275, lng:138.3925, episode:'通学シーン', time:'早朝', desc:'小熊が通学に使っていた駅のモデル。静かな田舎の空気感と山梨の風景が作品の魅力をそのまま感じさせる。', access:'JR中央本線・日野春駅。' },
+  ]},
+
+  { title:'AIR', spots:[
+    { place:'香住海岸', lat:35.6320, lng:134.6290, episode:'夏の海辺シーン', time:'夕方', desc:'夏空や海辺の雰囲気が作品世界を思わせる巡礼地。静かな波音と広い景色がAIR独特のノスタルジックな空気感を強く感じさせる。', access:'JR山陰本線・香住駅から徒歩約15分。' },
+  ]},
+
+]; // ← 新しいアニメはここの上に追加
+// ============================================================
+
+const ALL_PINS = ANIME_DATA.flatMap(a => a.spots.map(s => ({ anime:a.title, photo:'', ...s })));
+
+const COLORS=['#7F77DD','#1D9E75','#D85A30','#D4537E','#378ADD','#639922','#BA7517','#E24B4A','#5DCAA5','#888780','#AFA9EC','#9FE1CB'];
+let map,pins=[],markers=[],colorMap={},colorIdx=0;
+let userLat=null,userLng=null,userMarker=null;
+let selectedAnime='',sheetOpen=false,ddOpen=false,memos={};
+let pilMode=false,pilAnime='',pilOrder={},pilDone={},pilNextOrder=1,pilRouteLayer=null,pilActive=false;
+let detailOpenId=null;
+
+function getColor(a){if(!colorMap[a]){colorMap[a]=COLORS[colorIdx%COLORS.length];colorIdx++;}return colorMap[a];}
+
+function makeIcon(color,orderNum,done){
+  const s=34,h=44;
+  let inner,bgFill,opacity=1;
+  if(done){bgFill='#bbb';opacity=0.8;inner=`<text x="17" y="23" text-anchor="middle" font-size="15" font-weight="bold" fill="white" font-family="sans-serif">✓</text>`;}
+  else if(orderNum){bgFill=color;inner=`<text x="17" y="23" text-anchor="middle" font-size="14" font-weight="bold" fill="white" font-family="sans-serif">${orderNum}</text>`;}
+  else{bgFill=color;opacity=pilMode?0.45:0.9;inner=`<circle cx="17" cy="17" r="7" fill="white" fill-opacity="0.85"/>`;}
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${h}" viewBox="0 0 ${s} ${h}"><path d="M17 0C7.6 0 0 7.6 0 17c0 12.5 17 27 17 27S34 29.5 34 17C34 7.6 26.4 0 17 0z" fill="${bgFill}" fill-opacity="${opacity}"/>${inner}</svg>`;
+  return L.divIcon({html:svg,className:'',iconSize:[s,h],iconAnchor:[17,h],popupAnchor:[0,-h]});
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1400);}
+function dist(a,b,c,d){const R=6371000,dL=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180,x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dl/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+function fmtDist(m){return m<1000?`${Math.round(m)}m`:`${(m/1000).toFixed(1)}km`;}
+function walkMin(m){return `徒歩約${Math.ceil(m/80)}分`;}
+
+function initMap(){
+  map=L.map('map',{tap:true,zoomControl:false}).setView([36.5,136.5],6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors'}).addTo(map);
+}
+
+function addPin(pinData){
+  const pin={...pinData,id:pinData.id||(Date.now()+Math.random())};
+  pins.push(pin);
+  const marker=L.marker([pin.lat,pin.lng],{icon:makeIcon(getColor(pin.anime),null,false)}).addTo(map);
+  marker.on('click',()=>{
+    if(pilMode&&!pilActive){
+      if(pin.anime!==pilAnime){showToast('他のアニメのピンです');return;}
+      if(pilOrder[pin.id]){const removed=pilOrder[pin.id];delete pilOrder[pin.id];Object.keys(pilOrder).forEach(k=>{if(pilOrder[k]>removed)pilOrder[k]--;});pilNextOrder=Object.keys(pilOrder).length+1;showToast(`${pin.place} の順番を解除`);}
+      else{pilOrder[pin.id]=pilNextOrder++;showToast(`${pin.place} → ${pilOrder[pin.id]}番目`);}
+      updateBanner();refreshMarkers();renderListSheet();
+    }else{openDetail(pin.id);}
+  });
+  markers.push({pin,marker,id:pin.id});
+}
+
+function refreshMarkers(){markers.forEach(({pin,marker})=>marker.setIcon(makeIcon(getColor(pin.anime),pilOrder[pin.id]?String(pilOrder[pin.id]):null,pilDone[pin.id])));}
+
+// ── 巡礼のすゝめ ─────────────────────────────
+const TIME_ORDER=['早朝','朝','午前','昼','午後','夕方','夜','終日'];
+
+function sortRoute(spots){
+  const base=spots[0];
+  return [...spots].sort((a,b)=>{
+    const ta=TIME_ORDER.indexOf(a.time||'終日');
+    const tb=TIME_ORDER.indexOf(b.time||'終日');
+    if(ta!==tb)return ta-tb;
+    return dist(base.lat,base.lng,a.lat,a.lng)-dist(base.lat,base.lng,b.lat,b.lng);
+  });
+}
+
+function calcTotalDist(spots){
+  let total=0;
+  for(let i=0;i<spots.length-1;i++){
+    total+=dist(spots[i].lat,spots[i].lng,spots[i+1].lat,spots[i+1].lng);
+  }
+  return total;
+}
+
+function getDistanceComment(spots){
+  if(spots.length<2)return '';
+  const totalKm=calcTotalDist(spots)/1000;
+  if(totalKm<=30){
+    return `<span style="color:#1D9E75;">✓ 合計移動距離 約${totalKm.toFixed(0)}km — 1日で余裕を持って回れます。</span>`;
+  } else if(totalKm<=100){
+    return `<span style="color:#BA7517;">⚠ 合計移動距離 約${totalKm.toFixed(0)}km — 移動多めですが1日で回れます。体力と交通手段を確認しておきましょう。</span>`;
+  } else {
+    return `<span style="color:#E24B4A;">⚠ 合計移動距離 約${totalKm.toFixed(0)}km — 距離が長いため複数日に分けることをおすすめします。</span>`;
+  }
+}
+
+function getRouteComment(spots,mode){
+  const times=spots.map(p=>p.time||'終日');
+  const nightCount=times.filter(t=>t==='夜').length;
+  const eveningCount=times.filter(t=>t==='夕方').length;
+  const morningCount=times.filter(t=>t==='早朝'||t==='朝'||t==='午前').length;
+  const total=spots.length;
+  const distComment=getDistanceComment(spots);
+  let routeComment='';
+  if(mode==='night'){
+    if(nightCount===0)routeComment=`夜スポットはありませんが、<b>夕方から</b>訪れると雰囲気が出るスポットが${eveningCount}か所あります。`;
+    else routeComment=`<b>夜スポットが${nightCount}か所</b>あります。夕方から出発して夜に向けて回るのがおすすめです。`;
+  } else {
+    if(morningCount>=2)routeComment=`<b>午前中スタート</b>がおすすめ。早い時間帯のスポットが${morningCount}か所あり、混雑を避けられます。`;
+    else if(nightCount>=2)routeComment=`<b>夕方〜夜にかけて</b>訪れると作品の雰囲気に最も近くなります。昼間に移動して夜に備えましょう。`;
+    else routeComment=`全${total}か所を時間帯順に並べています。上から順に回るのが効率的です。`;
+  }
+  return `${routeComment}<br><small style="margin-top:5px;display:block;">${distComment}</small>`;
+}
+
+function renderSusume(p){
+  const animeSpots=ALL_PINS.filter(s=>s.anime===p.anime);
+  if(animeSpots.length<2)return '';
+  const color=getColor(p.anime);
+  const allRoute=sortRoute(animeSpots);
+  const nightSpots=animeSpots.filter(s=>s.time==='夕方'||s.time==='夜');
+  const nightRoute=nightSpots.length>0?sortRoute(nightSpots):[];
+
+  function stopsHTML(spots,currentId){
+    if(spots.length===0)return '<div class="susume-empty">該当するスポットがありません</div>';
+    return spots.map((s,i)=>{
+      const isCurrent=String(s.id)===String(currentId);
+      const isLast=i===spots.length-1;
+      return `<div class="susume-stop">
+        <div class="susume-line">
+          <div class="susume-circle" style="background:${isCurrent?'var(--blue)':color}">${i+1}</div>
+          ${!isLast?'<div class="susume-connector"></div>':''}
+        </div>
+        <div class="susume-info">
+          <div class="susume-place">${s.place}${isCurrent?' <span class="susume-current-badge">← いまここ</span>':''}</div>
+          <div class="susume-meta">
+            ${s.time?`<span class="susume-time-chip">${s.time}</span>`:''}
+            <span class="susume-ep-chip">${s.episode}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  const allHTML=`<div class="susume-comment">${getRouteComment(allRoute,'1day')}</div><div class="susume-route">${stopsHTML(allRoute,p.id)}</div>`;
+  const nightHTML=nightRoute.length>0
+    ?`<div class="susume-comment">${getRouteComment(nightRoute,'night')}</div><div class="susume-route">${stopsHTML(nightRoute,p.id)}</div>`
+    :`<div class="susume-empty">夕方・夜スポットがありません</div>`;
+
+  const uid=String(p.id).replace('.','');
+  return `<div class="susume-section">
+    <div class="susume-header">
+      <span class="susume-title">巡礼のすゝめ</span>
+      <div class="susume-tabs">
+        <button class="susume-tab active" onclick="switchTab(this,'all-${uid}','night-${uid}')">1日コース</button>
+        <button class="susume-tab" onclick="switchTab(this,'night-${uid}','all-${uid}')">夜コース</button>
+      </div>
+    </div>
+    <div id="all-${uid}">${allHTML}</div>
+    <div id="night-${uid}" style="display:none">${nightHTML}</div>
+  </div>`;
+}
+
+function switchTab(btn,showId,hideId){
+  document.getElementById(showId).style.display='block';
+  document.getElementById(hideId).style.display='none';
+  btn.parentElement.querySelectorAll('.susume-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+}
+// ─────────────────────────────────────────────
+
+function openDetail(id){
+  const m=markers.find(m=>String(m.pin.id)===String(id));if(!m)return;
+  const p=m.pin,color=getColor(p.anime);detailOpenId=id;
+  const mapsUrl=`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=walking`;
+  const ordered=getOrderedPins(),nextPin=ordered.find(q=>!pilDone[q.id]);
+  const isNextTarget=pilActive&&nextPin&&String(nextPin.id)===String(p.id);
+  document.getElementById('navRowInner').innerHTML=isNextTarget
+    ?`<a class="nav-big-btn" href="${mapsUrl}" target="_blank"><i class="ti ti-navigation"></i>Google Mapsで案内</a><button class="arrived-from-detail" onclick="markArrived('${p.id}')"><i class="ti ti-check"></i>到着！</button>`
+    :`<a class="nav-big-btn" href="${mapsUrl}" target="_blank"><i class="ti ti-navigation"></i>Google Mapsで案内</a>`;
+  const memo=memos[p.id]||'';
+  const isInPil=pilActive&&pilOrder[p.id]!==undefined,isDone=pilDone[p.id];
+  const pilBadge=isInPil?`<div style="display:inline-flex;align-items:center;gap:5px;background:${isDone?'#E1F5EE':color};color:${isDone?'#0F6E56':'white'};font-size:12px;font-weight:500;padding:4px 10px;border-radius:99px;margin-bottom:12px;">${isDone?'✓ 到着済み':`巡礼 ${pilOrder[p.id]}番目`}</div>`:'';
+  document.getElementById('detailScroll').innerHTML=`
+    ${p.photo?`<img style="width:100%;height:200px;object-fit:cover;display:block;" src="${p.photo}" alt="${p.place}"/>`
+      :`<div class="detail-hero-ph"><i class="ti ti-photo"></i><span>写真未登録</span></div>`}
+    <div class="detail-body">
+      <div class="d-anime-row"><span class="d-anime-dot" style="background:${color}"></span><span class="d-anime-name">${p.anime}</span></div>
+      <div class="d-place">${p.place}</div>
+      <div class="d-ep">${p.episode}</div>
+      ${pilBadge}
+      <div class="dsec"><div class="dsec-title">スポット紹介</div><div class="dsec-desc">${p.desc}</div></div>
+      <div class="dsec"><div class="dsec-title">アクセス・おすすめ時間帯</div>
+        <div class="dsec-row2">
+          <div class="dsec-access"><i class="ti ti-train"></i><span>${p.access||'情報なし'}</span></div>
+          ${p.time?`<div class="time-badge"><span class="time-badge-label">おすすめ</span><span class="time-badge-val">${p.time}</span></div>`:''}
+        </div>
+      </div>
+      ${renderSusume(p)}
+      <div class="dsec"><div class="dsec-title">巡礼メモ</div>
+        <textarea class="memo-area" id="memoArea_${p.id}" placeholder="自分用メモ（例：夕方がおすすめ、駅から遠い…）">${memo}</textarea>
+        <button class="memo-save-btn" id="memoSaveBtn_${p.id}" onclick="saveMemo('${p.id}')">メモを保存</button>
+      </div>
+      <div class="dsec fb-section" id="fb-wrap-${p.id}"></div>
+    </div>`;
+  document.getElementById('detailOverlay').classList.add('open');
+  document.getElementById('detailSheet').classList.add('open');
+  requestAnimationFrame(()=>renderFeedback(id));
+}
+
+const DISCORD_WEBHOOK = 'https://discordapp.com/api/webhooks/1509529666061602918/kBoX_G5QeJ0arkbhaX1u--Wx_kGwuNHYXgayg2d93QpSRO1L4F0BiOolyZSGRPtId_sp';
+const feedbacks = {}; // id -> {star, good:[], bad:[]}
+
+const GOOD_TAGS = ['いい巡礼順を提供してくれた','わかりやすかった','アニメの種類が豊富だった'];
+const BAD_TAGS  = ['いい巡礼順を提供してくれなかった','わかりにくかった','情報が誤っていた'];
+
+function initFeedback(id){
+  if(!feedbacks[id]) feedbacks[id]={star:0,good:[],bad:[]};
+}
+
+function renderFeedback(id){
+  initFeedback(id);
+  const fb=feedbacks[id];
+  const starsHTML=Array.from({length:5},(_,i)=>
+    `<span class="fb-star${i<fb.star?' on':''}" onclick="setFbStar('${id}',${i+1})">★</span>`
+  ).join('');
+  const goodHTML=GOOD_TAGS.map(t=>
+    `<span class="fb-tag${fb.good.includes(t)?' on-good':''}" onclick="toggleFbTag('${id}','good','${t}')">${t}</span>`
+  ).join('');
+  const badHTML=BAD_TAGS.map(t=>
+    `<span class="fb-tag${fb.bad.includes(t)?' on-bad':''}" onclick="toggleFbTag('${id}','bad','${t}')">${t}</span>`
+  ).join('');
+  const el=document.getElementById(`fb-wrap-${id}`);
+  if(!el)return;
+  el.innerHTML=`
+    <div class="dsec-title">フィードバック</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">巡礼の感想をDiscordに送れます</div>
+    <div class="fb-stars">${starsHTML}</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:5px;">よかった点</div>
+    <div class="fb-tags">${goodHTML}</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:5px;">不満だった点</div>
+    <div class="fb-tags">${badHTML}</div>
+    <button class="fb-send-btn" id="fb-btn-${id}" onclick="sendFeedback('${id}')" ${fb.star===0?'disabled':''}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+      フィードバックを送る
+    </button>
+    <div class="fb-sent" id="fb-sent-${id}" style="display:none;">✓ 送信しました！</div>`;
+}
+
+function setFbStar(id, n){
+  initFeedback(id);
+  feedbacks[id].star=n;
+  renderFeedback(id);
+}
+
+function toggleFbTag(id, type, tag){
+  initFeedback(id);
+  const arr=feedbacks[id][type];
+  const idx=arr.indexOf(tag);
+  if(idx===-1)arr.push(tag); else arr.splice(idx,1);
+  renderFeedback(id);
+}
+
+async function sendFeedback(id){
+  const m=markers.find(m=>String(m.pin.id)===String(id));
+  if(!m)return;
+  const p=m.pin, fb=feedbacks[id];
+  if(!fb||fb.star===0)return;
+  const btn=document.getElementById(`fb-btn-${id}`);
+  btn.disabled=true; btn.textContent='送信中…';
+  const stars='★'.repeat(fb.star)+'☆'.repeat(5-fb.star);
+  const goodStr=fb.good.length>0?fb.good.join('、'):'なし';
+  const badStr=fb.bad.length>0?fb.bad.join('、'):'なし';
+  const memo=feedbacks[id]?.memo||(document.getElementById(`memoArea_${id}`)?.value||'');
+  const embed={
+    title:`${p.place}`,
+    color:0x5865F2,
+    fields:[
+      {name:'アニメ',value:p.anime,inline:true},
+      {name:'話数',value:p.episode,inline:true},
+      {name:'評価',value:stars,inline:false},
+      {name:'👍 よかった点',value:goodStr,inline:true},
+      {name:'👎 不満だった点',value:badStr,inline:true},
+      ...(memo?[{name:'📝 メモ',value:memo,inline:false}]:[]),
+    ],
+    footer:{text:'アニメ聖地マップ より'}
+  };
+  try{
+    const res=await fetch(DISCORD_WEBHOOK,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({embeds:[embed]})
+    });
+    if(res.ok){
+      document.getElementById(`fb-sent-${id}`).style.display='block';
+      btn.style.display='none';
+    } else {
+      btn.disabled=false; btn.innerHTML='再送信する';
+    }
+  } catch(e){
+    btn.disabled=false; btn.textContent='再送信する';
+  }
+}
+
+// 巡礼完了後まとめてフィードバック
+async function sendAllFeedback(){
+  const ordered=getOrderedPins();
+  const results=ordered.map(p=>{
+    const fb=feedbacks[p.id];
+    if(!fb||fb.star===0)return null;
+    const stars='★'.repeat(fb.star)+'☆'.repeat(5-fb.star);
+    return `**${p.place}** ${stars}${fb.good.length?' 👍'+fb.good.join('・'):''}${fb.bad.length?' 👎'+fb.bad.join('・'):''}`;
+  }).filter(Boolean);
+  if(results.length===0)return;
+  const embed={
+    title:`${pilAnime} 巡礼レポート`,
+    description:results.join('\n'),
+    color:0x1D9E75,
+    footer:{text:'アニメ聖地マップ より'}
+  };
+  await fetch(DISCORD_WEBHOOK,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({embeds:[embed]})
+  });
+}
+
+function openAppReview(){
+  // アプリ評価用モーダル（フィードバックセクションを流用）
+  const overlay = document.getElementById('wizardOverlay');
+  const body = document.getElementById('wizardModalBody');
+  const header = document.querySelector('.wizard-modal-title');
+  header.textContent = '📝 アプリの評価';
+
+  // 専用のfeedback IDとして'app-review'を使う
+  const id = 'app-review';
+  initFeedback(id);
+
+  body.innerHTML = `
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px;background:#F0F4FF;border-radius:var(--r-sm);padding:10px 12px;line-height:1.6;">
+      
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:6px;font-weight:600;">総合評価</div>
+    <div class="fb-stars" style="margin-bottom:14px;" id="app-stars">
+      ${Array.from({length:5},(_,i)=>`<span class="fb-star${i<feedbacks[id].star?' on':''}" onclick="setFbStar('${id}',${i+1});document.querySelectorAll('#app-stars .fb-star').forEach((s,j)=>s.classList.toggle('on',j<${i+1}))">★</span>`).join('')}
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:6px;font-weight:600;">👍 よかった点</div>
+    <div class="fb-tags" id="app-good-tags">
+      ${GOOD_TAGS.map(t=>`<span class="fb-tag${feedbacks[id].good.includes(t)?' on-good':''}" onclick="toggleFbTag('${id}','good','${t}');this.classList.toggle('on-good')">${t}</span>`).join('')}
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin:10px 0 6px;font-weight:600;">👎 不満だった点</div>
+    <div class="fb-tags" id="app-bad-tags">
+      ${BAD_TAGS.map(t=>`<span class="fb-tag${feedbacks[id].bad.includes(t)?' on-bad':''}" onclick="toggleFbTag('${id}','bad','${t}');this.classList.toggle('on-bad')">${t}</span>`).join('')}
+    </div>
+    <button class="fb-send-btn" style="margin-top:16px;" onclick="sendAppReview()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+      フィードバックを送る
+    </button>`;
+  overlay.classList.add('open');
+}
+
+async function sendAppReview(){
+  const id='app-review';
+  const fb=feedbacks[id];
+  if(!fb||fb.star===0){showToast('★評価を選んでください');return;}
+  const stars='★'.repeat(fb.star)+'☆'.repeat(5-fb.star);
+  const goodStr=fb.good.length>0?fb.good.join('、'):'なし';
+  const badStr=fb.bad.length>0?fb.bad.join('、'):'なし';
+  const embed={
+    title:'📝 アプリ評価',
+    color:0x5865F2,
+    fields:[
+      {name:'総合評価',value:stars,inline:false},
+      {name:'👍 よかった点',value:goodStr,inline:true},
+      {name:'👎 不満だった点',value:badStr,inline:true},
+    ],
+    footer:{text:'アニメ聖地マップ より'}
+  };
+  try{
+    const res=await fetch(DISCORD_WEBHOOK,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({embeds:[embed]})});
+    if(res.ok){closeWizardModal();showToast('評価を送信しました！ありがとうございます');}
+    else showToast('送信に失敗しました');
+  }catch(e){showToast('送信に失敗しました');}
+}
+
+function saveMemo(id){
+  const ta=document.getElementById(`memoArea_${id}`),btn=document.getElementById(`memoSaveBtn_${id}`);
+  if(!ta)return;memos[id]=ta.value;btn.textContent='保存しました ✓';btn.classList.add('saved');
+  setTimeout(()=>{btn.textContent='メモを保存';btn.classList.remove('saved');},2000);
+}
+function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');document.getElementById('detailSheet').classList.remove('open');detailOpenId=null;}
+
+function getLocation(){
+  const btn=document.getElementById('locBtn'),banner=document.getElementById('locBanner'),msg=document.getElementById('locMsg');
+  if(!navigator.geolocation){banner.style.display='flex';msg.textContent='位置情報を利用できません。';setTimeout(()=>banner.style.display='none',3000);return;}
+  btn.classList.add('active');banner.style.display='flex';msg.textContent='現在地を取得中…';
+  navigator.geolocation.getCurrentPosition(pos=>{
+    userLat=pos.coords.latitude;userLng=pos.coords.longitude;
+    if(userMarker)map.removeLayer(userMarker);
+    userMarker=L.circleMarker([userLat,userLng],{radius:10,fillColor:'#378ADD',fillOpacity:1,color:'white',weight:3}).addTo(map);
+    map.flyTo([userLat,userLng],14,{animate:true,duration:1});
+    banner.style.display='flex';msg.textContent='現在地を取得しました！';setTimeout(()=>banner.style.display='none',2500);
+    applyFilter();if(!sheetOpen)toggleSheet();
+  },()=>{btn.classList.remove('active');banner.style.display='flex';msg.textContent='位置情報の取得に失敗しました。';setTimeout(()=>banner.style.display='none',3000);},{enableHighAccuracy:true,timeout:10000});
+}
+
+function enterAssignMode(anime){
+  pilRouteMode = 'suggest';
+  pilMode=true;pilActive=false;pilAnime=anime;pilOrder={};pilDone={};pilNextOrder=1;selectedAnime=anime;
+  document.getElementById('pillLabel').textContent=anime;document.getElementById('pillLabel').classList.add('chosen');
+  document.getElementById('pilControls').style.display='block';
+  document.getElementById('pilStartBtn').style.display='flex';document.getElementById('pilStartBtn').disabled=true;
+  updateBanner();
+  markers.forEach(({pin,marker})=>{if(pin.anime===anime)map.addLayer(marker);else map.removeLayer(marker);marker.setIcon(makeIcon(getColor(pin.anime),null,false));});
+  const am=markers.filter(m=>m.pin.anime===anime);
+  if(am.length)map.fitBounds(L.featureGroup(am.map(m=>m.marker)).getBounds().pad(0.2));
+  renderListSheet();if(!sheetOpen)toggleSheet();
+}
+
+function updateBanner(){
+  const total=pins.filter(p=>p.anime===pilAnime).length,assigned=Object.keys(pilOrder).length;
+  const btn=document.getElementById('pilStartBtn');
+  if(pilRouteMode==='suggest'){
+    document.getElementById('pilBannerText').textContent=`${pilAnime} — 巡礼スタイルを選んでください`;
+    btn.style.display='none'; // ウィザード内のボタンでスタートするので非表示
+  } else {
+    btn.style.display='flex';
+    if(assigned===0){document.getElementById('pilBannerText').textContent='ピンをクリックして順番を設定してください';btn.disabled=true;}
+    else{document.getElementById('pilBannerText').textContent=`${assigned}/${total}か所を設定済み`;btn.disabled=false;btn.innerHTML=`<i class="ti ti-route"></i>${assigned}か所でスタート`;}
+  }
+}
+
+function startPilgrimage(){
+  if(!Object.keys(pilOrder).length)return;
+  pilActive=true;document.getElementById('pilStartBtn').style.display='none';
+  document.getElementById('pilBannerText').textContent=`${pilAnime} 巡礼中 — ピンをクリックで詳細`;
+  document.getElementById('pilHud').classList.add('visible');
+  document.getElementById('sheetTitle').textContent=`${pilAnime} 巡礼`;
+  document.getElementById('listSheet').classList.add('pil-active');
+  sheetOpen=true;document.getElementById('sheetContent').classList.remove('collapsed');
+  updatePilHud();renderPilList();drawRoute();
+  const first=getOrderedPins()[0];if(first)map.flyTo([first.lat,first.lng],14,{animate:true,duration:1});
+}
+
+function adjustSheetForHud(){
+  const hud=document.getElementById('pilHud'),sheet=document.getElementById('listSheet');
+  if(pilActive&&hud.classList.contains('visible')){
+    requestAnimationFrame(()=>{sheet.style.bottom=hud.offsetHeight+'px';document.getElementById('sheetContent').style.maxHeight='180px';});
+  }else{sheet.style.bottom='0';document.getElementById('sheetContent').style.maxHeight='240px';}
+}
+
+function getOrderedPins(){return Object.entries(pilOrder).sort((a,b)=>a[1]-b[1]).map(([id])=>pins.find(p=>String(p.id)===String(id))).filter(Boolean);}
+
+function updatePilHud(){
+  const ordered=getOrderedPins(),nextPin=ordered.find(p=>!pilDone[p.id]);
+  const done=ordered.filter(p=>pilDone[p.id]).length,total=ordered.length;
+  const card=document.getElementById('pilNextCard');
+  if(!nextPin){card.innerHTML=`<div style="text-align:center;padding:8px 0;"><div style="font-size:24px;margin-bottom:6px;">🎉</div><div style="font-size:16px;font-weight:700;color:#111;margin-bottom:4px;">巡礼完了！</div><div style="font-size:13px;color:#888;margin-bottom:12px;">全${total}か所を制覇しました</div><button onclick="openAppReview()" style="margin-top:4px;margin-bottom:8px;padding:10px 20px;border-radius:99px;background:#5865F2;color:#fff;border:none;font-size:13px;cursor:pointer;font-weight:500;width:100%;display:flex;align-items:center;justify-content:center;gap:6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>このアプリの評価をしませんか</button><button onclick="exitPilMode()" style="padding:10px 24px;border-radius:99px;background:#1D9E75;color:#fff;border:none;font-size:14px;cursor:pointer;font-weight:500;width:100%;">巡礼を終了する</button></div>`;return;}
+  const mapsUrl=`https://www.google.com/maps/dir/?api=1&destination=${nextPin.lat},${nextPin.lng}&travelmode=walking`;
+  const distStr=userLat!==null?`${fmtDist(dist(userLat,userLng,nextPin.lat,nextPin.lng))} ・ ${walkMin(dist(userLat,userLng,nextPin.lat,nextPin.lng))}`:'現在地未取得';
+  card.innerHTML=`<div class="pil-progress"><div class="pil-progress-bar"><div class="pil-progress-fill" style="width:${done/total*100}%"></div></div><span class="pil-progress-text">${done}/${total}か所</span></div><div class="pil-next-label">次の目的地 — ${pilOrder[nextPin.id]}番目</div><div class="pil-next-place">${nextPin.place}</div><div class="pil-next-meta"><span>${nextPin.episode}</span><span>${distStr}</span></div><div class="pil-next-actions"><a class="pil-nav-big" href="${mapsUrl}" target="_blank"><i class="ti ti-navigation"></i>Google Mapsで案内</a><button class="pil-arrived-btn" onclick="markArrived('${nextPin.id}')"><i class="ti ti-check"></i>到着！</button></div>`;
+  requestAnimationFrame(adjustSheetForHud);
+}
+
+function markArrived(id){
+  pilDone[id]=true;refreshMarkers();updatePilHud();renderPilList();drawRoute();
+  if(detailOpenId===id)closeDetail();
+  const next=getOrderedPins().find(p=>!pilDone[p.id]);if(next)map.flyTo([next.lat,next.lng],14,{animate:true,duration:1});
+}
+
+function drawRoute(){
+  if(pilRouteLayer){map.removeLayer(pilRouteLayer);pilRouteLayer=null;}
+  const ordered=getOrderedPins();if(ordered.length<2)return;
+  pilRouteLayer=L.polyline(ordered.map(p=>[p.lat,p.lng]),{color:'#1D9E75',weight:3,opacity:.7,dashArray:'8 6'}).addTo(map);
+}
+
+function renderPilList(){
+  const content=document.getElementById('sheetContent'),ordered=getOrderedPins();
+  document.getElementById('sheetCount').textContent=`${ordered.length}か所`;
+  content.innerHTML=ordered.map(p=>{
+    const color=getColor(p.anime),done=pilDone[p.id],num=pilOrder[p.id];
+    const d=userLat!==null?dist(userLat,userLng,p.lat,p.lng):null;
+    const mapsUrl=`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=walking`;
+    return `<div class="pil-item${done?' done':''}" onclick="openDetail('${p.id}')"><div class="pil-num" style="background:${done?'#bbb':color}">${done?'✓':num}</div><div class="pil-info"><div class="pil-place" style="${done?'text-decoration:line-through;color:#aaa;':''}">${p.place}</div><div class="pil-sub">${p.episode}${d!==null?' ・ '+fmtDist(d):''}</div></div><div class="pil-right" onclick="event.stopPropagation()">${done?`<span class="pil-done-badge">到着済み</span>`:`<a class="pil-nav-btn" href="${mapsUrl}" target="_blank"><i class="ti ti-navigation"></i>案内</a>`}</div></div>`;
+  }).join('');
+}
+
+let pilRouteMode = 'suggest'; // 'suggest' | 'manual'
+let wizardState = {}; // ウィザードの回答状態
+
+// ── ウィザードロジック ────────────────────────────
+function clusterSpots(spots, thresholdKm=60){
+  // 距離ベースで近いスポットをグループ化
+  const clusters=[];
+  const used=new Set();
+  spots.forEach((s,i)=>{
+    if(used.has(i))return;
+    const cluster=[s];used.add(i);
+    spots.forEach((t,j)=>{
+      if(used.has(j))return;
+      if(dist(s.lat,s.lng,t.lat,t.lng)/1000<thresholdKm){cluster.push(t);used.add(j);}
+    });
+    clusters.push(cluster);
+  });
+  return clusters;
+}
+
+function getAreaLabel(spots){
+  // スポット群の代表地名を推定（最初のスポットのaccessから）
+  const acc=spots[0].access||'';
+  const m=acc.match(/([^\s・]+[都道府県市区町])/);
+  if(m)return m[1];
+  // アクセス情報がなければ緯度経度で大まかに判定
+  const lat=spots[0].lat,lng=spots[0].lng;
+  if(lat>36)return '北部エリア';
+  if(lng>139.5)return '東部エリア';
+  if(lng<136)return '西部エリア';
+  return '中部エリア';
+}
+
+function buildWizardRoute(spots, multiDay, areaIdx, timeSlot){
+  const clusters=clusterSpots(spots);
+  if(multiDay){
+    return clusters.map(c=>sortRoute(c));
+  } else {
+    const target = areaIdx!=null ? clusters[areaIdx] : spots;
+    if(timeSlot==='range'){
+      // スライダーで選んだ範囲でフィルタ
+      const filtered = target.filter(s=>{
+        const idx = TIME_LABELS.indexOf(s.time);
+        if(idx===-1) return true; // time未設定は含める
+        return idx >= sliderStart && idx <= sliderEnd;
+      });
+      const result = filtered.length > 0 ? sortRoute(filtered) : sortRoute(target);
+      return [result];
+    }
+    if(timeSlot==='full') return [sortRoute(target)];
+    const base=target[0];
+    return [[...target].sort((a,b)=>dist(base.lat,base.lng,a.lat,a.lng)-dist(base.lat,base.lng,b.lat,b.lng))];
+  }
+}
+
+function wizardRouteHTML(dayRoutes, animeColor){
+  return dayRoutes.map((spots,di)=>{
+    const totalKm=calcTotalDist(spots)/1000;
+    let distWarn='';
+    if(totalKm>100)distWarn=`<span class="dist-warn" style="color:#E24B4A;">⚠ この日の移動距離 約${totalKm.toFixed(0)}km — 長距離移動があります</span>`;
+    else if(totalKm>30)distWarn=`<span class="dist-warn" style="color:#BA7517;">⚠ この日の移動距離 約${totalKm.toFixed(0)}km</span>`;
+    else distWarn=`<span class="dist-warn" style="color:#1D9E75;">✓ この日の移動距離 約${totalKm.toFixed(0)}km</span>`;
+    const stopsHTML=spots.map((s,i)=>{
+      const isLast=i===spots.length-1;
+      return `<div class="wizard-stop">
+        <div class="wizard-line">
+          <div class="wizard-circle" style="background:${animeColor}">${i+1}</div>
+          ${!isLast?'<div class="wizard-connector"></div>':''}
+        </div>
+        <div class="wizard-stop-info">
+          <div class="wizard-stop-place">${s.place}</div>
+          <div class="wizard-stop-meta">
+            ${s.time?`<span class="wizard-time-chip">${s.time}</span>`:''}
+            <span class="wizard-ep-chip">${s.episode}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="wizard-day-block">
+      ${dayRoutes.length>1?`<div class="wizard-day-label">${di+1}日目 — ${spots.length}か所</div>`:''}
+      <div class="wizard-result-comment">${distWarn}</div>
+      <div class="wizard-route">${stopsHTML}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderWizardResult(){
+  const spots=pins.filter(p=>p.anime===pilAnime);
+  const color=getColor(pilAnime);
+  const {multiDay,areaIdx,timeSlot}=wizardState;
+  const dayRoutes=buildWizardRoute(spots,multiDay,areaIdx,timeSlot);
+  const html=wizardRouteHTML(dayRoutes,color);
+  wizardSetBody(`
+    <div class="wizard-result">
+      ${html}
+      <button class="wizard-use-btn" onclick="applyWizardRoute()">このルートで巡礼スタート</button>
+      <button class="wizard-restart" onclick="startWizard()">← 最初からやり直す</button>
+    </div>`);
+}
+
+function applyWizardRoute(){
+  const spots=pins.filter(p=>p.anime===pilAnime);
+  const {multiDay,areaIdx,timeSlot}=wizardState;
+  const dayRoutes=buildWizardRoute(spots,multiDay,areaIdx,timeSlot);
+  pilOrder={};let idx=1;
+  dayRoutes.forEach(day=>day.forEach(s=>{pilOrder[s.id]=idx++;}));
+  pilNextOrder=idx;
+  closeWizardModal();
+  startPilgrimage();
+}
+
+function openWizardModal(){
+  document.getElementById('wizardOverlay').classList.add('open');
+  startWizard();
+}
+function closeWizardModal(){
+  document.getElementById('wizardOverlay').classList.remove('open');
+}
+function onWizardOverlayClick(e){
+  if(e.target===document.getElementById('wizardOverlay'))closeWizardModal();
+}
+
+function wizardSetBody(html){
+  document.getElementById('wizardModalBody').innerHTML=html;
+}
+
+function startWizard(){
+  wizardState={};
+  wizardSetBody(`
+    <div class="wizard-q">Q1. 複数日で巡礼しますか？</div>
+    <div class="wizard-sub">スポットが複数エリアに分散している場合、日程を分けると快適に巡礼できます。</div>
+    <div class="wizard-choices">
+      <button class="wizard-btn" onclick="wizardAnswer(1,'yes')">
+        <span class="wbtn-icon">📅</span>
+        <span class="wbtn-text">はい<span class="wbtn-desc">エリアごとに日程を分けてルートを組む</span></span>
+      </button>
+      <button class="wizard-btn" onclick="wizardAnswer(1,'no')">
+        <span class="wbtn-icon">⚡</span>
+        <span class="wbtn-text">いいえ、1日で回る<span class="wbtn-desc">1日でできるだけ多くのスポットを巡礼</span></span>
+      </button>
+    </div>`);
+}
+
+function wizardAnswer(step, value){
+  const spots=pins.filter(p=>p.anime===pilAnime);
+  const clusters=clusterSpots(spots);
+
+  if(step===1){
+    wizardState.multiDay=(value==='yes');
+    if(wizardState.multiDay){
+      wizardState.areaIdx=null;wizardState.timeSlot='full';
+      renderWizardResult();
+    } else {
+      if(clusters.length<=1){
+        wizardState.areaIdx=0;
+        showWizardQ3();
+      } else {
+        wizardSetBody(`
+          <button class="wizard-back" onclick="startWizard()">← 戻る</button>
+          <div class="wizard-q">Q2. どのエリアで巡礼しますか？</div>
+          <div class="wizard-sub">スポットが複数エリアにあります。1日で回るエリアを選んでください。</div>
+          <div class="wizard-choices">
+            ${clusters.map((c,i)=>`
+              <button class="wizard-btn" onclick="wizardAnswer(2,${i})">
+                <span class="wbtn-icon">📍</span>
+                <span class="wbtn-text">${getAreaLabel(c)}<span class="wbtn-desc">${c.map(s=>s.place).join('・')}</span></span>
+              </button>`).join('')}
+            <button class="wizard-btn" onclick="wizardAnswer(2,-1)">
+              <span class="wbtn-icon">🗾</span>
+              <span class="wbtn-text">全エリアまとめて<span class="wbtn-desc">移動距離は長くなります</span></span>
+            </button>
+          </div>`);
+      }
+    }
+  } else if(step===2){
+    wizardState.areaIdx=value===-1?null:value;
+    showWizardQ3();
+  } else if(step===3){
+    wizardState.timeSlot=value;
+    renderWizardResult();
+  }
+}
+
+const TIME_LABELS = ['早朝','朝','午前','昼','午後','夕方','夜'];
+let sliderStart = 0, sliderEnd = TIME_LABELS.length - 1;
+let dragging = null;
+
+function showWizardQ3(){
+  sliderStart = 0;
+  sliderEnd = TIME_LABELS.length - 1;
+  wizardSetBody(`
+    <button class="wizard-back" onclick="startWizard()">← 戻る</button>
+    <div class="wizard-q">Q3. 時間帯を選んでください</div>
+    <div class="wizard-sub">つまみをドラッグして巡礼する時間帯の範囲を指定してください。</div>
+    <div class="time-slider-wrap">
+      <div class="time-slider-labels">
+        ${TIME_LABELS.map(t=>`<span class="time-slider-label">${t}</span>`).join('')}
+      </div>
+      <div class="time-slider-track" id="sliderTrack">
+        <div class="time-slider-rail"></div>
+        <div class="time-slider-range" id="sliderRange"></div>
+        <div class="time-slider-thumb" id="thumbStart"></div>
+        <div class="time-slider-thumb" id="thumbEnd"></div>
+      </div>
+      <div class="time-slider-selected" id="sliderSelected"></div>
+    </div>
+    <button class="wizard-use-btn" style="background:#1a1a2e;margin-top:4px;" onclick="wizardAnswer(3,'range')">このルートを確認する</button>`);
+  requestAnimationFrame(initSlider);
+}
+
+function initSlider(){
+  const track = document.getElementById('sliderTrack');
+  if(!track) return;
+  updateSliderUI();
+
+  function getPos(e){
+    const rect = track.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  }
+  function posToIdx(pos){ return Math.round(pos * (TIME_LABELS.length - 1)); }
+
+  function onMove(e){
+    if(!dragging) return;
+    e.preventDefault();
+    const idx = posToIdx(getPos(e));
+    if(dragging === 'start'){
+      sliderStart = Math.min(idx, sliderEnd);
+    } else {
+      sliderEnd = Math.max(idx, sliderStart);
+    }
+    updateSliderUI();
+  }
+  function onUp(){ dragging = null; }
+
+  document.getElementById('thumbStart').addEventListener('mousedown', e=>{ dragging='start'; e.preventDefault(); });
+  document.getElementById('thumbEnd').addEventListener('mousedown', e=>{ dragging='end'; e.preventDefault(); });
+  document.getElementById('thumbStart').addEventListener('touchstart', e=>{ dragging='start'; }, {passive:true});
+  document.getElementById('thumbEnd').addEventListener('touchstart', e=>{ dragging='end'; }, {passive:true});
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchmove', onMove, {passive:false});
+  document.addEventListener('touchend', onUp);
+}
+
+function updateSliderUI(){
+  const n = TIME_LABELS.length - 1;
+  const startPct = (sliderStart / n) * 100;
+  const endPct = (sliderEnd / n) * 100;
+  const ts = document.getElementById('thumbStart');
+  const te = document.getElementById('thumbEnd');
+  const range = document.getElementById('sliderRange');
+  const sel = document.getElementById('sliderSelected');
+  if(!ts||!te||!range||!sel) return;
+  ts.style.left = startPct + '%';
+  te.style.left = endPct + '%';
+  range.style.left = startPct + '%';
+  range.style.width = (endPct - startPct) + '%';
+  const startLabel = TIME_LABELS[sliderStart];
+  const endLabel = TIME_LABELS[sliderEnd];
+  sel.textContent = startLabel === endLabel ? startLabel : `${startLabel} 〜 ${endLabel}`;
+}
+// ────────────────────────────────────────────────
+
+function setPilRouteMode(mode){
+  pilRouteMode=mode;
+  document.querySelectorAll('.pil-mode-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll(`.pil-mode-card[data-mode="${mode}"]`).forEach(c=>c.classList.add('selected'));
+  renderListSheetBody();
+}
+
+function renderListSheetBody(){
+  const animePins=pins.filter(p=>p.anime===pilAnime);
+  const container=document.getElementById('pilSheetBody');
+  if(!container)return;
+  if(pilRouteMode==='suggest'){
+    // suggestモードはボタンクリックでモーダルを開く
+    container.innerHTML=`<div style="padding:16px;">
+      <button class="wizard-use-btn" style="background:var(--green);" onclick="openWizardModal()">✨ 巡礼のすゝめを見る</button>
+    </div>`;
+  } else {
+    container.innerHTML=animePins.map(p=>{
+      const color=getColor(p.anime),orderNum=pilOrder[p.id];
+      return `<div class="near-item" onclick="openDetail('${p.id}')"><div class="order-badge${orderNum?' assigned':''}" style="${orderNum?`background:${color};`:''}">${orderNum||'—'}</div><div class="near-left"><div class="near-place">${p.place}</div><div class="near-ep">${p.episode}</div></div><div class="near-right"><span class="detail-btn-sm"><i class="ti ti-chevron-right"></i>詳細</span></div></div>`;
+    }).join('');
+  }
+}
+
+function renderListSheet(){
+  const total=pins.filter(p=>p.anime===pilAnime).length;
+  const assigned=Object.keys(pilOrder).length;
+  document.getElementById('sheetCount').textContent=`${assigned}/${total}か所`;
+
+  const modeSelect=`<div class="pil-mode-select">
+    <div class="pil-mode-title">巡礼スタイルを選ぶ</div>
+    <div class="pil-mode-cards">
+      <div class="pil-mode-card${pilRouteMode==='suggest'?' selected':''}" data-mode="suggest" onclick="setPilRouteMode('suggest')">
+        <div class="pil-mode-card-icon">✨</div>
+        <div class="pil-mode-card-label">巡礼のすゝめ</div>
+        <div class="pil-mode-card-desc">質問に答えてルートを自動提案</div>
+      </div>
+      <div class="pil-mode-card${pilRouteMode==='manual'?' selected':''}" data-mode="manual" onclick="setPilRouteMode('manual')">
+        <div class="pil-mode-card-icon">🗺️</div>
+        <div class="pil-mode-card-label">自分で決める</div>
+        <div class="pil-mode-card-desc">ピンをタップして順番を自由に設定</div>
+      </div>
+    </div>
+  </div>
+  <div style="height:1px;background:var(--border);"></div>
+  <div id="pilSheetBody"></div>`;
+
+  document.getElementById('sheetContent').innerHTML=modeSelect;
+  renderListSheetBody();
+}
+
+function exitPilMode(){
+  pilMode=false;pilActive=false;pilAnime='';pilOrder={};pilDone={};pilNextOrder=1;
+  if(pilRouteLayer){map.removeLayer(pilRouteLayer);pilRouteLayer=null;}
+  document.getElementById('pilControls').style.display='none';document.getElementById('pilHud').classList.remove('visible');
+  document.getElementById('pilStartBtn').style.display='none';document.getElementById('sheetTitle').textContent='聖地一覧';
+  document.getElementById('listSheet').classList.remove('pil-active');
+  document.getElementById('listSheet').style.bottom='0';
+  document.getElementById('sheetContent').style.maxHeight='240px';
+  selectedAnime='';document.getElementById('pillLabel').textContent='アニメを選択';document.getElementById('pillLabel').classList.remove('chosen');
+  closeDetail();refreshMarkers();applyFilter();
+}
+
+function toggleDD(e){
+  if(pilMode)return;e.stopPropagation();ddOpen=!ddOpen;
+  document.getElementById('animePill').classList.toggle('open',ddOpen);document.getElementById('animeDD').classList.toggle('open',ddOpen);
+  if(ddOpen){document.getElementById('ddInput').value='';renderDDItems('');setTimeout(()=>document.getElementById('ddInput').focus(),50);}
+}
+function renderDDItems(q){
+  const all=[...new Set(pins.map(p=>p.anime))];const f=q?all.filter(a=>a.toLowerCase().includes(q.toLowerCase())):all;
+  const el=document.getElementById('ddItems');
+  if(!f.length){el.innerHTML=`<div style="padding:12px;font-size:14px;color:#999;text-align:center;">見つかりません</div>`;return;}
+  el.innerHTML=f.map(a=>{const color=getColor(a),cnt=pins.filter(p=>p.anime===a).length;return `<div class="dd-item${a===selectedAnime?' sel':''}" onclick="onAnimeSelect('${a.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')"><span class="dd-dot" style="background:${color}"></span><span style="flex:1">${a}</span><span class="dd-cnt">${cnt}</span></div>`;}).join('');
+}
+function onAnimeSelect(anime){document.getElementById('animePill').classList.remove('open');document.getElementById('animeDD').classList.remove('open');ddOpen=false;enterAssignMode(anime);}
+function selectAnime(anime){selectedAnime=anime;document.getElementById('pillLabel').textContent=anime||'アニメを選択';document.getElementById('pillLabel').classList.toggle('chosen',!!anime);document.getElementById('animePill').classList.remove('open');document.getElementById('animeDD').classList.remove('open');ddOpen=false;applyFilter();}
+
+function applyFilter(){
+  if(pilMode)return;
+  const placeQ=document.getElementById('placeSearch').value.toLowerCase();
+  let filtered=pins.filter(p=>(!selectedAnime||p.anime===selectedAnime)&&(!placeQ||p.place.toLowerCase().includes(placeQ)||p.anime.toLowerCase().includes(placeQ)));
+  if(userLat!==null)filtered=filtered.map(p=>({...p,_dist:dist(userLat,userLng,p.lat,p.lng)})).sort((a,b)=>a._dist-b._dist);
+  markers.forEach(({pin,marker})=>{const show=!!filtered.find(f=>f.id===pin.id);if(show)map.addLayer(marker);else map.removeLayer(marker);marker.setIcon(makeIcon(getColor(pin.anime),null,false));});
+  document.getElementById('sheetTitle').textContent=userLat!==null?'近くの聖地':'聖地一覧';document.getElementById('sheetCount').textContent=`${filtered.length}件`;
+  const content=document.getElementById('sheetContent');
+  if(!filtered.length){content.innerHTML=`<div class="empty-sheet">該当する聖地が見つかりません</div>`;return;}
+  content.innerHTML=filtered.map(p=>{const color=getColor(p.anime),d=p._dist,isNear=d!==undefined&&d<3000;return `<div class="near-item" onclick="openDetail('${p.id}')"><div class="near-left"><div class="near-anime"><span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>${p.anime}</div><div class="near-place">${p.place}</div><div class="near-ep">${p.episode}</div></div><div class="near-right">${d!==undefined?`<span class="dist-badge${isNear?' near':''}">${isNear?'★ ':''}${fmtDist(d)}</span>`:''}<span class="detail-btn-sm"><i class="ti ti-chevron-right"></i>詳細</span></div></div>`;}).join('');
+}
+
+// ── ボトムシート スワイプ制御 ─────────────────────────
+(function(){
+  let startY=0, startH=0, isDragging=false;
+  const SNAP_OPEN=160, SNAP_CLOSE=60;
+  // 3段階の高さ（collapsed / half / full）
+  const HEIGHTS={ collapsed:0, half:220, full:Math.round(window.innerHeight*0.65) };
+  let currentSnap='collapsed';
+
+  function getSheet(){ return document.getElementById('listSheet'); }
+  function getContent(){ return document.getElementById('sheetContent'); }
+
+  function applyHeight(h, animate){
+    const sheet=getSheet(), content=getContent();
+    if(!sheet||!content) return;
+    if(animate) sheet.style.transition='transform .3s cubic-bezier(.32,1,.4,1)';
+    else sheet.style.transition='none';
+    content.style.maxHeight = h + 'px';
+    content.style.overflow = 'auto';
+    if(h===0){
+      content.classList.add('collapsed');
+      sheetOpen=false;
+    } else {
+      content.classList.remove('collapsed');
+      sheetOpen=true;
+    }
+  }
+
+  function snapTo(snap, animate=true){
+    currentSnap=snap;
+    applyHeight(HEIGHTS[snap], animate);
+  }
+
+  function onHandleDown(e){
+    isDragging=true;
+    startY = e.touches ? e.touches[0].clientY : e.clientY;
+    startH = HEIGHTS[currentSnap];
+    getSheet().style.transition='none';
+    e.preventDefault();
+  }
+
+  function onMove(e){
+    if(!isDragging) return;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const dy = startY - clientY; // 上方向が正
+    const newH = Math.max(0, Math.min(HEIGHTS.full, startH + dy));
+    applyHeight(newH, false);
+    e.preventDefault();
+  }
+
+  function onUp(e){
+    if(!isDragging) return;
+    isDragging=false;
+    const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+    const dy = startY - clientY;
+    const curH = HEIGHTS[currentSnap];
+    // スナップ判定
+    if(dy > SNAP_OPEN){
+      // 大きく上スワイプ → full or half
+      snapTo(currentSnap==='full'?'full':currentSnap==='half'?'full':'half');
+    } else if(dy < -SNAP_CLOSE){
+      // 下スワイプ → half or collapsed
+      snapTo(currentSnap==='full'?'half':currentSnap==='half'?'collapsed':'collapsed');
+    } else {
+      // 元に戻す
+      snapTo(currentSnap);
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', ()=>{
+    const handleRow = document.querySelector('.sheet-handle-row');
+    if(!handleRow) return;
+    handleRow.addEventListener('touchstart', onHandleDown, {passive:false});
+    handleRow.addEventListener('mousedown', onHandleDown);
+    document.addEventListener('touchmove', onMove, {passive:false});
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('touchend', onUp);
+    document.addEventListener('mouseup', onUp);
+  });
+})();
+
+function toggleSheet(){
+  // ハンドルタップで3段階切り替え
+  const snaps=['collapsed','half','full'];
+  const cur=document.getElementById('sheetContent').classList.contains('collapsed')?'collapsed':
+    parseInt(document.getElementById('sheetContent').style.maxHeight||0)<300?'half':'full';
+  const next=cur==='collapsed'?'half':cur==='half'?'full':'collapsed';
+  sheetOpen=next!=='collapsed';
+  const content=document.getElementById('sheetContent');
+  const HEIGHTS={collapsed:0,half:220,full:Math.round(window.innerHeight*0.65)};
+  content.style.maxHeight=HEIGHTS[next]+'px';
+  content.style.overflow='auto';
+  if(next==='collapsed') content.classList.add('collapsed');
+  else content.classList.remove('collapsed');
+}
+
+document.addEventListener('click',e=>{if(!document.getElementById('animeWrap').contains(e.target)){document.getElementById('animePill').classList.remove('open');document.getElementById('animeDD').classList.remove('open');ddOpen=false;}});
+
+initMap();
+ALL_PINS.forEach(p=>addPin(p));
+applyFilter();
+const group=L.featureGroup(markers.map(m=>m.marker));
+map.fitBounds(group.getBounds().pad(0.08));
+</script>
+</body>
+</html>
